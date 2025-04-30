@@ -372,6 +372,13 @@ man_pages = [
         1,
     ),
     (
+        "programs/gdal_raster_pixelinfo",
+        "gdal-raster-pixelinfo",
+        "Return information on a pixel of a raster dataset",
+        [author_evenr],
+        1,
+    ),
+    (
         "programs/gdal_raster_reproject",
         "gdal-raster-reproject",
         "Reproject a raster dataset",
@@ -397,6 +404,13 @@ man_pages = [
         "gdal-raster-scale",
         "Scale the values of the bands of a raster dataset",
         [author_evenr],
+        1,
+    ),
+    (
+        "programs/gdal_raster_sieve",
+        "gdal-raster-sieve",
+        "Remove small raster polygons",
+        [author_elpaso],
         1,
     ),
     (

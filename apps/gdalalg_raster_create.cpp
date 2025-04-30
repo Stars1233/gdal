@@ -68,9 +68,10 @@ GDALRasterCreateAlgorithm::GDALRasterCreateAlgorithm()
 
     {
         auto &arg = AddArg("metadata", 0, _("Add metadata item"), &m_metadata)
-                        .SetMetaVar("<KEY>=<VALUE>");
+                        .SetMetaVar("<KEY>=<VALUE>")
+                        .SetPackedValuesAllowed(false);
         arg.AddValidationAction([this, &arg]()
-                                { return ValidateKeyValue(arg); });
+                                { return ParseAndValidateKeyValue(arg); });
         arg.AddHiddenAlias("mo");
     }
     AddArg("copy-metadata", 0, _("Copy metadata from input dataset"),
@@ -94,18 +95,16 @@ bool GDALRasterCreateAlgorithm::RunImpl(GDALProgressFunc /* pfnProgress */,
         return false;
     }
 
-    VSIStatBufL sStat;
+    const char *pszType = "";
     if (!m_append && !m_outputDataset.GetName().empty() &&
-        (VSIStatL(m_outputDataset.GetName().c_str(), &sStat) == 0 ||
-         std::unique_ptr<GDALDataset>(
-             GDALDataset::Open(m_outputDataset.GetName().c_str()))))
+        GDALDoesFileOrDatasetExist(m_outputDataset.GetName().c_str(), &pszType))
     {
         if (!m_overwrite)
         {
             ReportError(CE_Failure, CPLE_AppDefined,
-                        "File '%s' already exists. Specify the --overwrite "
+                        "%s '%s' already exists. Specify the --overwrite "
                         "option to overwrite it, or --append to append to it.",
-                        m_outputDataset.GetName().c_str());
+                        pszType, m_outputDataset.GetName().c_str());
             return false;
         }
         else

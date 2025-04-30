@@ -35,12 +35,14 @@ Available sub-commands
 - :ref:`gdal_raster_mosaic`
 - :ref:`gdal_raster_overview`
 - :ref:`gdal_raster_pipeline`
+- :ref:`gdal_raster_pixelinfo`
 - :ref:`gdal_raster_polygonize`
 - :ref:`gdal_raster_reproject`
 - :ref:`gdal_raster_resize`
 - :ref:`gdal_raster_roughness`
 - :ref:`gdal_raster_scale`
 - :ref:`gdal_raster_select`
+- :ref:`gdal_raster_sieve`
 - :ref:`gdal_raster_slope`
 - :ref:`gdal_raster_stack`
 - :ref:`gdal_raster_tpi`

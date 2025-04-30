@@ -1,57 +1,52 @@
 /******************************************************************************
  *
  * Project:  GDAL
- * Purpose:  gdal "raster polygonize" subcommand
- * Author:   Even Rouault <even dot rouault at spatialys.com>
+ * Purpose:  gdal "raster sieve" subcommand
+ * Author:   Alessandro Pasotti <elpaso at itopen dot it>
  *
  ******************************************************************************
- * Copyright (c) 2025, Even Rouault <even dot rouault at spatialys.com>
+ * Copyright (c) 2025, Alessandro Pasotti <elpaso at itopen dot it>
  *
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-#ifndef GDALALG_RASTER_POLYGONIZE_INCLUDED
-#define GDALALG_RASTER_POLYGONIZE_INCLUDED
+#ifndef GDALALG_RASTER_SIEVE_INCLUDED
+#define GDALALG_RASTER_SIEVE_INCLUDED
 
 #include "gdalalgorithm.h"
 
 //! @cond Doxygen_Suppress
 
 /************************************************************************/
-/*                     GDALRasterPolygonizeAlgorithm                    */
+/*                   GDALRasterSieveAlgorithm                           */
 /************************************************************************/
 
-class GDALRasterPolygonizeAlgorithm final : public GDALAlgorithm
+class GDALRasterSieveAlgorithm final : public GDALAlgorithm
 {
   public:
-    static constexpr const char *NAME = "polygonize";
+    static constexpr const char *NAME = "sieve";
     static constexpr const char *DESCRIPTION =
-        "Create a polygon feature dataset from a raster band.";
-    static constexpr const char *HELP_URL =
-        "/programs/gdal_raster_polygonize.html";
+        "Remove small polygons from a raster dataset.";
+    static constexpr const char *HELP_URL = "/programs/gdal_raster_sieve.html";
 
-    GDALRasterPolygonizeAlgorithm();
+    explicit GDALRasterSieveAlgorithm();
 
   private:
     bool RunImpl(GDALProgressFunc pfnProgress, void *pProgressData) override;
 
-    std::string m_outputFormat{};
     GDALArgDatasetValue m_inputDataset{};
     std::vector<std::string> m_openOptions{};
     std::vector<std::string> m_inputFormats{};
+
+    std::string m_format{};
     GDALArgDatasetValue m_outputDataset{};
     std::vector<std::string> m_creationOptions{};
-    std::vector<std::string> m_layerCreationOptions{};
     bool m_overwrite = false;
-    bool m_update = false;
-    bool m_overwriteLayer = false;
-    bool m_appendLayer = false;
 
-    // polygonize specific arguments
     int m_band = 1;
-    std::string m_outputLayerName = "polygonize";
-    std::string m_attributeName = "DN";
+    int m_sizeThreshold = 2;
     bool m_connectDiagonalPixels = false;
+    GDALArgDatasetValue m_maskDataset{};
 };
 
 //! @endcond

@@ -73,11 +73,10 @@ GDALRasterPolygonizeAlgorithm::GDALRasterPolygonizeAlgorithm()
     AddArg("attribute-name", 0, _("Name of the field with the pixel value"),
            &m_attributeName)
         .SetDefault(m_attributeName);
-    AddArg("connectedness", 0,
-           _("Whether to use 4-connectedness or 8-connectedness"),
-           &m_connectedness)
-        .SetChoices("4", "8")
-        .SetDefault(m_connectedness);
+
+    AddArg("connect-diagonal-pixels", 'c',
+           _("Consider diagonal pixels as connected"), &m_connectDiagonalPixels)
+        .SetDefault(m_connectDiagonalPixels);
 }
 
 /************************************************************************/
@@ -90,18 +89,16 @@ bool GDALRasterPolygonizeAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
     auto poSrcDS = m_inputDataset.GetDatasetRef();
     CPLAssert(poSrcDS);
 
-    VSIStatBufL sStat;
+    const char *pszType = "";
     if (!m_update && !m_outputDataset.GetName().empty() &&
-        (VSIStatL(m_outputDataset.GetName().c_str(), &sStat) == 0 ||
-         std::unique_ptr<GDALDataset>(
-             GDALDataset::Open(m_outputDataset.GetName().c_str()))))
+        GDALDoesFileOrDatasetExist(m_outputDataset.GetName().c_str(), &pszType))
     {
         if (!m_overwrite)
         {
             ReportError(CE_Failure, CPLE_AppDefined,
-                        "File '%s' already exists. Specify the --overwrite "
+                        "%s '%s' already exists. Specify the --overwrite "
                         "option to overwrite it, or --update to update it.",
-                        m_outputDataset.GetName().c_str());
+                        pszType, m_outputDataset.GetName().c_str());
             return false;
         }
         else
@@ -240,7 +237,7 @@ bool GDALRasterPolygonizeAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
     }
 
     CPLStringList aosPolygonizeOptions;
-    if (m_connectedness == 8)
+    if (m_connectDiagonalPixels)
     {
         aosPolygonizeOptions.SetNameValue("8CONNECTED", "8");
     }

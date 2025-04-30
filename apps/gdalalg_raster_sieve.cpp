@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  GDAL
- * Purpose:  "gdal raster fillnodata" standalone command
+ * Purpose:  gdal "raster sieve" subcommand
  * Author:   Alessandro Pasotti <elpaso at itopen dot it>
  *
  ******************************************************************************
@@ -10,14 +10,15 @@
  * SPDX-License-Identifier: MIT
  ****************************************************************************/
 
-#include "gdalalg_raster_fillnodata.h"
+#include "gdalalg_raster_sieve.h"
 
+#include "cpl_conv.h"
+#include "cpl_vsi_virtual.h"
+
+#include "gdal_alg.h"
 #include "gdal_priv.h"
 #include "gdal_utils.h"
-#include "gdal_alg.h"
 #include "commonutils.h"
-
-#include <algorithm>
 
 //! @cond Doxygen_Suppress
 
@@ -26,48 +27,34 @@
 #endif
 
 /************************************************************************/
-/*   GDALRasterFillNodataAlgorithm::GDALRasterFillNodataAlgorithm()     */
+/*      GDALRasterSieveAlgorithm::GDALRasterSieveAlgorithm()            */
 /************************************************************************/
 
-GDALRasterFillNodataAlgorithm::GDALRasterFillNodataAlgorithm() noexcept
+GDALRasterSieveAlgorithm::GDALRasterSieveAlgorithm()
     : GDALAlgorithm(NAME, DESCRIPTION, HELP_URL)
 {
 
     AddProgressArg();
 
+    AddOpenOptionsArg(&m_openOptions);
     AddInputFormatsArg(&m_inputFormats)
         .AddMetadataItem(GAAMDI_REQUIRED_CAPABILITIES, {GDAL_DCAP_RASTER});
     AddInputDatasetArg(&m_inputDataset, GDAL_OF_RASTER);
+
     AddOutputDatasetArg(&m_outputDataset, GDAL_OF_RASTER);
     AddOutputFormatArg(&m_format, /* bStreamAllowed = */ false,
                        /* bGDALGAllowed = */ false)
         .AddMetadataItem(GAAMDI_REQUIRED_CAPABILITIES,
-                         {GDAL_DCAP_CREATE, GDAL_DCAP_RASTER});
-
+                         {GDAL_DCAP_RASTER, GDAL_DCAP_CREATE});
     AddCreationOptionsArg(&m_creationOptions);
     AddOverwriteArg(&m_overwrite);
 
-    AddBandArg(&m_band).SetDefault(m_band);
-
-    AddArg("max-distance", 'd',
-           _("The maximum distance (in pixels) that the algorithm will search "
-             "out for values to interpolate."),
-           &m_maxDistance)
-        .SetDefault(m_maxDistance)
-        .SetMetaVar("MAX_DISTANCE");
-
-    AddArg("smoothing-iterations", 's',
-           _("The number of 3x3 average filter smoothing iterations to run "
-             "after the interpolation to dampen artifacts. The default is zero "
-             "smoothing iterations."),
-           &m_smoothingIterations)
-        .SetDefault(m_smoothingIterations)
-        .SetMetaVar("SMOOTHING_ITERATIONS");
-
-    auto &mask{AddArg("mask", 0,
-                      _("Use the first band of the specified file as a "
-                        "validity mask (zero is invalid, non-zero is valid)."),
-                      &m_maskDataset)};
+    auto &mask{
+        AddArg("mask", 0,
+               _("Use the first band of the specified file as a "
+                 "validity mask (all pixels with a value other than zero "
+                 "will be considered suitable for inclusion in polygons)"),
+               &m_maskDataset)};
 
     SetAutoCompleteFunctionForFilename(mask, GDAL_OF_RASTER);
 
@@ -82,31 +69,34 @@ GDALRasterFillNodataAlgorithm::GDALRasterFillNodataAlgorithm() noexcept
             return static_cast<bool>(poDS);
         });
 
-    AddArg("strategy", 0,
-           _("By default, pixels are interpolated using an inverse distance "
-             "weighting (invdist). It is also possible to choose a nearest "
-             "neighbour (nearest) strategy."),
-           &m_strategy)
-        .SetDefault(m_strategy)
-        .SetChoices("invdist", "nearest");
+    AddBandArg(&m_band);
+    AddArg("size-threshold", 's', _("Minimum size of polygons to keep"),
+           &m_sizeThreshold)
+        .SetDefault(m_sizeThreshold);
+
+    AddArg("connect-diagonal-pixels", 'c',
+           _("Consider diagonal pixels as connected"), &m_connectDiagonalPixels)
+        .SetDefault(m_connectDiagonalPixels);
 }
 
 /************************************************************************/
-/*                 GDALRasterFillNodataAlgorithm::RunImpl()             */
+/*                 GDALRasterSieveAlgorithm::RunImpl()                  */
 /************************************************************************/
 
-bool GDALRasterFillNodataAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
-                                            void *pProgressData)
+bool GDALRasterSieveAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
+                                       void *pProgressData)
 {
 
-    const char *pszType = "";
+    VSIStatBufL sStat;
     if (!m_overwrite && !m_outputDataset.GetName().empty() &&
-        GDALDoesFileOrDatasetExist(m_outputDataset.GetName().c_str(), &pszType))
+        (VSIStatL(m_outputDataset.GetName().c_str(), &sStat) == 0 ||
+         std::unique_ptr<GDALDataset>(
+             GDALDataset::Open(m_outputDataset.GetName().c_str()))))
     {
         ReportError(CE_Failure, CPLE_AppDefined,
-                    "%s '%s' already exists. Specify the --overwrite "
+                    "File '%s' already exists. Specify the --overwrite "
                     "option to overwrite it.",
-                    pszType, m_outputDataset.GetName().c_str());
+                    m_outputDataset.GetName().c_str());
         return false;
     }
 
@@ -194,23 +184,14 @@ bool GDALRasterFillNodataAlgorithm::RunImpl(GDALProgressFunc pfnProgress,
         return false;
     }
 
-    // Prepare options to pass to GDALFillNodata
-    CPLStringList aosFillOptions;
+    const CPLErr err = GDALSieveFilter(
+        dstBand, maskBand, dstBand, m_sizeThreshold,
+        m_connectDiagonalPixels ? 8 : 4, nullptr, pfnProgress, pProgressData);
 
-    if (EQUAL(m_strategy.c_str(), "nearest"))
-        aosFillOptions.AddNameValue("INTERPOLATION", "NEAREST");
-    else
-        aosFillOptions.AddNameValue("INTERPOLATION",
-                                    "INV_DIST");  // default strategy
-
-    auto retVal{GDALFillNodata(
-        dstBand, maskBand, m_maxDistance, 0, m_smoothingIterations,
-        aosFillOptions.List(), m_progressBarRequested ? pfnProgress : nullptr,
-        m_progressBarRequested ? pProgressData : nullptr)};
-
-    if (retVal != CE_None)
+    if (err != CE_None)
     {
-        ReportError(CE_Failure, CPLE_AppDefined, "Cannot run fillNodata.");
+        ReportError(CE_Failure, CPLE_AppDefined,
+                    "Failed to apply sieve filter");
         return false;
     }
 
