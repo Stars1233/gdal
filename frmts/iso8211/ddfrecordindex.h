@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Project:  ISO 8211 Access
- * Purpose:  Implements DDFRecordIndex class.  This class is used to cache
+ * Purpose:  Implements DDFRecordIndex class. This class is used to cache
  *           ISO8211 records for spatial objects so they can be efficiently
  *           assembled later as features.
  * Author:   Frank Warmerdam, warmerdam@pobox.com
@@ -16,6 +16,8 @@
 #define DDFRECORDINDEX_H_INCLUDED
 
 #include "iso8211.h"
+
+#include <map>
 
 /************************************************************************/
 /*                            DDFRecordIndex                            */
@@ -34,6 +36,7 @@ class CPL_DLL DDFRecordIndex
 {
     mutable bool bSorted = false;
     mutable std::vector<DDFIndexedRecord> asRecords{};
+    std::map<int, DDFRecord *> oMapKeyToRecord{};
 
     void Sort() const;
 
