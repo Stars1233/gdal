@@ -166,30 +166,31 @@ class GDALReadDirect
         int height = redBand.YSize;
 
         // Create a Bitmap to store the GDAL image in
-        Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb);
-
-        DateTime start = DateTime.Now;
-
-        // Use GDAL raster reading methods to read the image data directly into the Bitmap
-        BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, PixelFormat.Format32bppRgb);
-
-        try
+        using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb))
         {
-            int stride = bitmapData.Stride;
-            IntPtr buf = bitmapData.Scan0;
+            DateTime start = DateTime.Now;
 
-            blueBand.ReadRaster(0, 0, width, height, buf, width, height, DataType.GDT_Byte, 4, stride);
-            greenBand.ReadRaster(0, 0, width, height, new IntPtr(buf.ToInt64() + 1), width, height, DataType.GDT_Byte, 4, stride);
-            redBand.ReadRaster(0, 0, width, height, new IntPtr(buf.ToInt64() + 2), width, height, DataType.GDT_Byte, 4, stride);
-            TimeSpan renderTime = DateTime.Now - start;
-            Console.WriteLine("SaveBitmapDirect fetch time: " + renderTime.TotalMilliseconds + " ms");
-        }
-        finally
-        {
-            bitmap.UnlockBits(bitmapData);
-        }
+            // Use GDAL raster reading methods to read the image data directly into the Bitmap
+            BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, PixelFormat.Format32bppRgb);
 
-        bitmap.Save(filename);
+            try
+            {
+                int stride = bitmapData.Stride;
+                IntPtr buf = bitmapData.Scan0;
+
+                blueBand.ReadRaster(0, 0, width, height, buf, width, height, DataType.GDT_Byte, 4, stride);
+                greenBand.ReadRaster(0, 0, width, height, new IntPtr(buf.ToInt64() + 1), width, height, DataType.GDT_Byte, 4, stride);
+                redBand.ReadRaster(0, 0, width, height, new IntPtr(buf.ToInt64() + 2), width, height, DataType.GDT_Byte, 4, stride);
+                TimeSpan renderTime = DateTime.Now - start;
+                Console.WriteLine("SaveBitmapDirect fetch time: " + renderTime.TotalMilliseconds + " ms");
+            }
+            finally
+            {
+                bitmap.UnlockBits(bitmapData);
+            }
+
+            bitmap.Save(filename);
+        }
 
         redBand.Dispose();
         greenBand.Dispose();
@@ -222,40 +223,41 @@ class GDALReadDirect
             int height = band.YSize;
 
             // Create a Bitmap to store the GDAL image in
-            Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format8bppIndexed);
-
-            DateTime start = DateTime.Now;
-
-            byte[] r = new byte[width * height];
-
-            band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
-            // Use GDAL raster reading methods to read the image data directly into the Bitmap
-            BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
-
-            try
+            using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format8bppIndexed))
             {
-                int iCol = ct.GetCount();
-                ColorPalette pal = bitmap.Palette;
-                for (int i = 0; i < iCol; i++)
+                DateTime start = DateTime.Now;
+
+                byte[] r = new byte[width * height];
+
+                band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
+                // Use GDAL raster reading methods to read the image data directly into the Bitmap
+                BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+
+                try
                 {
-                    ColorEntry ce = ct.GetColorEntry(i);
-                    pal.Entries[i] = Color.FromArgb(ce.c4, ce.c1, ce.c2, ce.c3);
+                    int iCol = ct.GetCount();
+                    ColorPalette pal = bitmap.Palette;
+                    for (int i = 0; i < iCol; i++)
+                    {
+                        ColorEntry ce = ct.GetColorEntry(i);
+                        pal.Entries[i] = Color.FromArgb(ce.c4, ce.c1, ce.c2, ce.c3);
+                    }
+                    bitmap.Palette = pal;
+
+                    int stride = bitmapData.Stride;
+                    IntPtr buf = bitmapData.Scan0;
+
+                    band.ReadRaster(0, 0, width, height, buf, width, height, DataType.GDT_Byte, 1, stride);
+                    TimeSpan renderTime = DateTime.Now - start;
+                    Console.WriteLine("SaveBitmapDirect fetch time: " + renderTime.TotalMilliseconds + " ms");
                 }
-                bitmap.Palette = pal;
+                finally
+                {
+                    bitmap.UnlockBits(bitmapData);
+                }
 
-                int stride = bitmapData.Stride;
-                IntPtr buf = bitmapData.Scan0;
-
-                band.ReadRaster(0, 0, width, height, buf, width, height, DataType.GDT_Byte, 1, stride);
-                TimeSpan renderTime = DateTime.Now - start;
-                Console.WriteLine("SaveBitmapDirect fetch time: " + renderTime.TotalMilliseconds + " ms");
+                bitmap.Save(filename);
             }
-            finally
-            {
-                bitmap.UnlockBits(bitmapData);
-            }
-
-            bitmap.Save(filename);
         }
         band.Dispose();
     }
@@ -272,36 +274,37 @@ class GDALReadDirect
         int height = band.YSize;
 
         // Create a Bitmap to store the GDAL image in
-        Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format8bppIndexed);
-
-        DateTime start = DateTime.Now;
-
-        byte[] r = new byte[width * height];
-
-        band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
-        // Use GDAL raster reading methods to read the image data directly into the Bitmap
-        BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
-
-        try
+        using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format8bppIndexed))
         {
-            ColorPalette pal = bitmap.Palette;
-            for (int i = 0; i < 256; i++)
-                pal.Entries[i] = Color.FromArgb(255, i, i, i);
-            bitmap.Palette = pal;
+            DateTime start = DateTime.Now;
 
-            int stride = bitmapData.Stride;
-            IntPtr buf = bitmapData.Scan0;
+            byte[] r = new byte[width * height];
 
-            band.ReadRaster(0, 0, width, height, buf, width, height, DataType.GDT_Byte, 1, stride);
-            TimeSpan renderTime = DateTime.Now - start;
-            Console.WriteLine("SaveBitmapDirect fetch time: " + renderTime.TotalMilliseconds + " ms");
+            band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
+            // Use GDAL raster reading methods to read the image data directly into the Bitmap
+            BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, PixelFormat.Format8bppIndexed);
+
+            try
+            {
+                ColorPalette pal = bitmap.Palette;
+                for (int i = 0; i < 256; i++)
+                    pal.Entries[i] = Color.FromArgb(255, i, i, i);
+                bitmap.Palette = pal;
+
+                int stride = bitmapData.Stride;
+                IntPtr buf = bitmapData.Scan0;
+
+                band.ReadRaster(0, 0, width, height, buf, width, height, DataType.GDT_Byte, 1, stride);
+                TimeSpan renderTime = DateTime.Now - start;
+                Console.WriteLine("SaveBitmapDirect fetch time: " + renderTime.TotalMilliseconds + " ms");
+            }
+            finally
+            {
+                bitmap.UnlockBits(bitmapData);
+            }
+
+            bitmap.Save(filename);
         }
-        finally
-        {
-            bitmap.UnlockBits(bitmapData);
-        }
-
-        bitmap.Save(filename);
 
         band.Dispose();
     }

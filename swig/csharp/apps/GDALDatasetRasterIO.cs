@@ -230,50 +230,51 @@ class GDALReadDirect
 
 
         // Create a Bitmap to store the GDAL image in
-        Bitmap bitmap = new Bitmap(imageWidth, imageHeight, pixelFormat);
-
-        if (isIndexed)
+        using (Bitmap bitmap = new Bitmap(imageWidth, imageHeight, pixelFormat))
         {
-            // setting up the color table
-            if (ct != null)
+            if (isIndexed)
             {
-                int iCol = ct.GetCount();
-                ColorPalette pal = bitmap.Palette;
-                for (int i = 0; i < iCol; i++)
+                // setting up the color table
+                if (ct != null)
                 {
-                    ColorEntry ce = ct.GetColorEntry(i);
-                    pal.Entries[i] = Color.FromArgb(ce.c4, ce.c1, ce.c2, ce.c3);
+                    int iCol = ct.GetCount();
+                    ColorPalette pal = bitmap.Palette;
+                    for (int i = 0; i < iCol; i++)
+                    {
+                        ColorEntry ce = ct.GetColorEntry(i);
+                        pal.Entries[i] = Color.FromArgb(ce.c4, ce.c1, ce.c2, ce.c3);
+                    }
+                    bitmap.Palette = pal;
                 }
-                bitmap.Palette = pal;
+                else
+                {
+                    // grayscale
+                    ColorPalette pal = bitmap.Palette;
+                    for (int i = 0; i < 256; i++)
+                        pal.Entries[i] = Color.FromArgb(255, i, i, i);
+                    bitmap.Palette = pal;
+                }
             }
-            else
+
+            // Use GDAL raster reading methods to read the image data directly into the Bitmap
+            BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, imageWidth, imageHeight), ImageLockMode.ReadWrite, pixelFormat);
+
+            try
             {
-                // grayscale
-                ColorPalette pal = bitmap.Palette;
-                for (int i = 0; i < 256; i++)
-                    pal.Entries[i] = Color.FromArgb(255, i, i, i);
-                bitmap.Palette = pal;
+                int stride = bitmapData.Stride;
+                IntPtr buf = bitmapData.Scan0;
+
+                ds.ReadRaster(xOff, yOff, width, height, buf, imageWidth, imageHeight, dataType,
+                    channelCount, bandMap, pixelSpace, stride, 1);
             }
+            finally
+            {
+                bitmap.UnlockBits(bitmapData);
+            }
+
+            bitmap.Save(filename);
+            ct.Dispose();
         }
-
-        // Use GDAL raster reading methods to read the image data directly into the Bitmap
-        BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, imageWidth, imageHeight), ImageLockMode.ReadWrite, pixelFormat);
-
-        try
-        {
-            int stride = bitmapData.Stride;
-            IntPtr buf = bitmapData.Scan0;
-
-            ds.ReadRaster(xOff, yOff, width, height, buf, imageWidth, imageHeight, dataType,
-                channelCount, bandMap, pixelSpace, stride, 1);
-        }
-        finally
-        {
-            bitmap.UnlockBits(bitmapData);
-        }
-
-        bitmap.Save(filename);
-        ct.Dispose();
     }
 }
 #pragma warning restore CA1416 // Validate platform compatibility
