@@ -658,10 +658,10 @@ int DDFRecord::ReadHeader()
  *
  * @param pszName The name of the field to fetch.  The comparison is
  * case insensitive.
- * @param iFieldIndex The instance of this field to fetch.  Use zero (the
+ * @param iFieldIndex The instance of this field to fetch. Use zero (the
  * default) for the first instance.
  *
- * @return Pointer to the requested DDFField.  This pointer is to an
+ * @return Pointer to the requested DDFField. This pointer is to an
  * internal object, and should not be freed.  It remains valid until
  * the next record read.
  */
@@ -709,6 +709,53 @@ const DDFField *DDFRecord::GetField(int i) const
 /*                          FindSubfieldDefn()                          */
 /************************************************************************/
 
+/* static */ std::tuple<const DDFField *, const DDFSubfieldDefn *>
+DDFRecord::FindSubfieldDefn(const DDFField *poField, const char *pszSubfield,
+                            bool bEmitError)
+{
+    if (poField->GetParts().empty())
+    {
+        /* -------------------------------------------------------------------- */
+        /*      Get the subfield definition                                     */
+        /* -------------------------------------------------------------------- */
+        const DDFSubfieldDefn *poSFDefn =
+            poField->GetFieldDefn()->FindSubfieldDefn(pszSubfield);
+        if (poSFDefn == nullptr)
+        {
+            if (bEmitError)
+            {
+                CPLError(CE_Failure, CPLE_AppDefined,
+                         "Cannot find subfield %s of %s", pszSubfield,
+                         poField->GetFieldDefn()->GetName());
+            }
+            return {nullptr, nullptr};
+        }
+
+        return {nullptr, poSFDefn};
+    }
+    else
+    {
+        for (auto &poPart : poField->GetParts())
+        {
+            const DDFSubfieldDefn *poSFDefn =
+                poPart->GetFieldDefn()->FindSubfieldDefn(pszSubfield);
+            if (poSFDefn)
+                return {poPart.get(), poSFDefn};
+        }
+        if (bEmitError)
+        {
+            CPLError(CE_Failure, CPLE_AppDefined,
+                     "Cannot find subfield %s of %s", pszSubfield,
+                     poField->GetFieldDefn()->GetName());
+        }
+        return {nullptr, nullptr};
+    }
+}
+
+/************************************************************************/
+/*                          FindSubfieldDefn()                          */
+/************************************************************************/
+
 std::tuple<const DDFField *, const DDFField *, const DDFSubfieldDefn *>
 DDFRecord::FindSubfieldDefn(const char *pszField, int iFieldIndex,
                             const char *pszSubfield, bool bEmitError) const
@@ -727,42 +774,9 @@ DDFRecord::FindSubfieldDefn(const char *pszField, int iFieldIndex,
         return {nullptr, nullptr, nullptr};
     }
 
-    if (poField->GetParts().empty())
-    {
-        /* -------------------------------------------------------------------- */
-        /*      Get the subfield definition                                     */
-        /* -------------------------------------------------------------------- */
-        const DDFSubfieldDefn *poSFDefn =
-            poField->GetFieldDefn()->FindSubfieldDefn(pszSubfield);
-        if (poSFDefn == nullptr)
-        {
-            if (bEmitError)
-            {
-                CPLError(CE_Failure, CPLE_AppDefined,
-                         "Cannot find subfield %s of %s", pszSubfield,
-                         pszField);
-            }
-            return {nullptr, nullptr, nullptr};
-        }
-
-        return {poField, nullptr, poSFDefn};
-    }
-    else
-    {
-        for (auto &poPart : poField->GetParts())
-        {
-            const DDFSubfieldDefn *poSFDefn =
-                poPart->GetFieldDefn()->FindSubfieldDefn(pszSubfield);
-            if (poSFDefn)
-                return {poField, poPart.get(), poSFDefn};
-        }
-        if (bEmitError)
-        {
-            CPLError(CE_Failure, CPLE_AppDefined,
-                     "Cannot find subfield %s of %s", pszSubfield, pszField);
-        }
-        return {nullptr, nullptr, nullptr};
-    }
+    auto [poPartField, poSFDefn] =
+        FindSubfieldDefn(poField, pszSubfield, bEmitError);
+    return {poSFDefn ? poField : nullptr, poPartField, poSFDefn};
 }
 
 /************************************************************************/
@@ -770,24 +784,20 @@ DDFRecord::FindSubfieldDefn(const char *pszField, int iFieldIndex,
 /************************************************************************/
 
 /**
- * Fetch value of a subfield as an integer.  This is a convenience
+ * Fetch value of a subfield as an integer. This is a convenience
  * function for fetching a subfield of a field within this record.
  *
- * @param pszField The name of the field containing the subfield.
- * @param iFieldIndex The instance of this field within the record.  Use
- * zero for the first instance of this field.
- * @param pszSubfield The name of the subfield within the selected field.
+ * @param poField The field containing the subfield.
  * @param iSubfieldIndex The instance of this subfield within the record.
  * Use zero for the first instance.
  * @param pnSuccess Pointer to an int which will be set to TRUE if the fetch
- * succeeds, or FALSE if it fails.  Use NULL if you don't want to check
+ * succeeds, or FALSE if it fails. Use NULL if you don't want to check
  * success.
  * @return The value of the subfield, or zero if it failed for some reason.
  */
 
-int DDFRecord::GetIntSubfield(const char *pszField, int iFieldIndex,
-                              const char *pszSubfield, int iSubfieldIndex,
-                              int *pnSuccess) const
+int DDFRecord::GetIntSubfield(const DDFField *poField, const char *pszSubfield,
+                              int iSubfieldIndex, int *pnSuccess) const
 
 {
     int nDummyErr = FALSE;
@@ -800,8 +810,8 @@ int DDFRecord::GetIntSubfield(const char *pszField, int iFieldIndex,
     /* -------------------------------------------------------------------- */
     /*      Get the subfield definition                                     */
     /* -------------------------------------------------------------------- */
-    auto [poField, poPartField, poSFDefn] =
-        FindSubfieldDefn(pszField, iFieldIndex, pszSubfield, false);
+    auto [poPartField, poSFDefn] =
+        FindSubfieldDefn(poField, pszSubfield, false);
     if (poSFDefn == nullptr)
         return 0;
     if (poPartField)
@@ -833,21 +843,57 @@ int DDFRecord::GetIntSubfield(const char *pszField, int iFieldIndex,
 }
 
 /************************************************************************/
-/*                          GetFloatSubfield()                          */
+/*                           GetIntSubfield()                           */
 /************************************************************************/
 
 /**
- * Fetch value of a subfield as a float (double).  This is a convenience
+ * Fetch value of a subfield as an integer. This is a convenience
  * function for fetching a subfield of a field within this record.
  *
  * @param pszField The name of the field containing the subfield.
- * @param iFieldIndex The instance of this field within the record.  Use
+ * @param iFieldIndex The instance of this field within the record. Use
  * zero for the first instance of this field.
  * @param pszSubfield The name of the subfield within the selected field.
  * @param iSubfieldIndex The instance of this subfield within the record.
  * Use zero for the first instance.
  * @param pnSuccess Pointer to an int which will be set to TRUE if the fetch
- * succeeds, or FALSE if it fails.  Use NULL if you don't want to check
+ * succeeds, or FALSE if it fails. Use NULL if you don't want to check
+ * success.
+ * @return The value of the subfield, or zero if it failed for some reason.
+ */
+
+int DDFRecord::GetIntSubfield(const char *pszField, int iFieldIndex,
+                              const char *pszSubfield, int iSubfieldIndex,
+                              int *pnSuccess) const
+
+{
+    const DDFField *poField = FindField(pszField, iFieldIndex);
+    if (poField == nullptr)
+    {
+        if (pnSuccess)
+            *pnSuccess = FALSE;
+        return 0;
+    }
+
+    return GetIntSubfield(poField, pszSubfield, iSubfieldIndex, pnSuccess);
+}
+
+/************************************************************************/
+/*                          GetFloatSubfield()                          */
+/************************************************************************/
+
+/**
+ * Fetch value of a subfield as a float (double). This is a convenience
+ * function for fetching a subfield of a field within this record.
+ *
+ * @param pszField The name of the field containing the subfield.
+ * @param iFieldIndex The instance of this field within the record. Use
+ * zero for the first instance of this field.
+ * @param pszSubfield The name of the subfield within the selected field.
+ * @param iSubfieldIndex The instance of this subfield within the record.
+ * Use zero for the first instance.
+ * @param pnSuccess Pointer to an int which will be set to TRUE if the fetch
+ * succeeds, or FALSE if it fails. Use NULL if you don't want to check
  * success.
  * @return The value of the subfield, or zero if it failed for some reason.
  */
@@ -902,24 +948,22 @@ double DDFRecord::GetFloatSubfield(const char *pszField, int iFieldIndex,
 /************************************************************************/
 
 /**
- * Fetch value of a subfield as a string.  This is a convenience
+ * Fetch value of a subfield as a string. This is a convenience
  * function for fetching a subfield of a field within this record.
  *
- * @param pszField The name of the field containing the subfield.
- * @param iFieldIndex The instance of this field within the record.  Use
- * zero for the first instance of this field.
+ * @param poField The field containing the subfield.
  * @param pszSubfield The name of the subfield within the selected field.
  * @param iSubfieldIndex The instance of this subfield within the record.
  * Use zero for the first instance.
  * @param pnSuccess Pointer to an int which will be set to TRUE if the fetch
- * succeeds, or FALSE if it fails.  Use NULL if you don't want to check
+ * succeeds, or FALSE if it fails. Use NULL if you don't want to check
  * success.
  * @return The value of the subfield, or NULL if it failed for some reason.
  * The returned pointer is to internal data and should not be modified or
  * freed by the application.
  */
 
-const char *DDFRecord::GetStringSubfield(const char *pszField, int iFieldIndex,
+const char *DDFRecord::GetStringSubfield(const DDFField *poField,
                                          const char *pszSubfield,
                                          int iSubfieldIndex,
                                          int *pnSuccess) const
@@ -935,8 +979,8 @@ const char *DDFRecord::GetStringSubfield(const char *pszField, int iFieldIndex,
     /* -------------------------------------------------------------------- */
     /*      Fetch the field. If this fails, return zero.                    */
     /* -------------------------------------------------------------------- */
-    auto [poField, poPartField, poSFDefn] =
-        FindSubfieldDefn(pszField, iFieldIndex, pszSubfield, false);
+    auto [poPartField, poSFDefn] =
+        FindSubfieldDefn(poField, pszSubfield, false);
     if (poSFDefn == nullptr)
         return nullptr;
     if (poPartField)
@@ -958,6 +1002,45 @@ const char *DDFRecord::GetStringSubfield(const char *pszField, int iFieldIndex,
     *pnSuccess = TRUE;
 
     return poSFDefn->ExtractStringData(l_pachData, nBytesRemaining, nullptr);
+}
+
+/************************************************************************/
+/*                         GetStringSubfield()                          */
+/************************************************************************/
+
+/**
+ * Fetch value of a subfield as a string. This is a convenience
+ * function for fetching a subfield of a field within this record.
+ *
+ * @param pszField The name of the field containing the subfield.
+ * @param iFieldIndex The instance of this field within the record. Use
+ * zero for the first instance of this field.
+ * @param pszSubfield The name of the subfield within the selected field.
+ * @param iSubfieldIndex The instance of this subfield within the record.
+ * Use zero for the first instance.
+ * @param pnSuccess Pointer to an int which will be set to TRUE if the fetch
+ * succeeds, or FALSE if it fails. Use NULL if you don't want to check
+ * success.
+ * @return The value of the subfield, or NULL if it failed for some reason.
+ * The returned pointer is to internal data and should not be modified or
+ * freed by the application.
+ */
+
+const char *DDFRecord::GetStringSubfield(const char *pszField, int iFieldIndex,
+                                         const char *pszSubfield,
+                                         int iSubfieldIndex,
+                                         int *pnSuccess) const
+
+{
+    const DDFField *poField = FindField(pszField, iFieldIndex);
+    if (poField == nullptr)
+    {
+        if (pnSuccess)
+            *pnSuccess = FALSE;
+        return nullptr;
+    }
+
+    return GetStringSubfield(poField, pszSubfield, iSubfieldIndex, pnSuccess);
 }
 
 /************************************************************************/
@@ -1095,7 +1178,7 @@ int DDFRecord::DeleteField(DDFField *poTarget)
         return FALSE;
 
     /* -------------------------------------------------------------------- */
-    /*      Change the target fields data size to zero.  This takes care    */
+    /*      Change the target fields data size to zero. This takes care     */
     /*      of repacking the data array, and updating all the following     */
     /*      field data pointers.                                            */
     /* -------------------------------------------------------------------- */
@@ -1122,7 +1205,7 @@ int DDFRecord::DeleteField(DDFField *poTarget)
  *
  * This method will rearrange a DDFRecord altering the amount of space
  * reserved for one of the existing fields.  All following fields will
- * be shifted accordingly.  This includes updating the DDFField infos,
+ * be shifted accordingly. This includes updating the DDFField infos,
  * and actually moving stuff within the data array after reallocating
  * to the desired size.
  *
@@ -1324,7 +1407,7 @@ int DDFRecord::SetFieldRaw(DDFField *poField, int iIndexWithinField,
         return FALSE;
 
     /* -------------------------------------------------------------------- */
-    /*      Are we adding an instance?  This is easier and different        */
+    /*      Are we adding an instance? This is easier and different         */
     /*      than replacing an existing instance.                            */
     /* -------------------------------------------------------------------- */
     if ((iIndexWithinField == nRepeatCount ||
@@ -1686,7 +1769,7 @@ char *DDFRecord::GetSubfieldDataForSetSubfield(DDFField *poField,
  * @param iFieldIndex the field index to operate on (zero based).
  * @param pszSubfield the subfield name to operate on.
  * @param iSubfieldIndex the subfield index to operate on (zero based).
- * @param pszValue the new string to place in the subfield.  This may be
+ * @param pszValue the new string to place in the subfield. This may be
  * arbitrary binary bytes if nValueLength is specified.
  * @param nValueLength the number of valid bytes in pszValue, may be -1 to
  * internally fetch with strlen().
