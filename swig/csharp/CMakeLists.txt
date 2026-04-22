@@ -1,4 +1,8 @@
 option(GDAL_CSHARP_ONLY "Compile C# bindings on existing GDAL installation" OFF)
+# The following are used by downstream packagers.
+option(CSHARP_BUILD_SAMPLES "Build C# sample applications" ${BUILD_TESTING})
+option(CSHARP_RUN_TESTS "Run C# tests" ${CSHARP_BUILD_SAMPLES})
+option(CSHARP_INSTALL_NUGET_PACKAGES "Install C# NuGet packages to the install location" ON)
 
 if (GDAL_CSHARP_ONLY)
   find_package(GDAL REQUIRED)
@@ -39,7 +43,6 @@ if("${CSHARP_APPLICATION_VERSION}" STREQUAL "latest")
 endif()
 
 message(STATUS "Requested Library .NET target framework: " ${CSHARP_LIBRARY_VERSION} )
-message(STATUS "Requested Application .NET target framework: " ${CSHARP_APPLICATION_VERSION} )
 
 string(REGEX MATCH "[0-9\.]+" _CSHARP_LIBRARY_TFM_NUMBER "${CSHARP_LIBRARY_VERSION}" )
 string(REGEX MATCH "[0-9\.]+" _CSHARP_APPLICATION_TFM_NUMBER "${CSHARP_APPLICATION_VERSION}" )
@@ -59,25 +62,29 @@ else ()
   message(STATUS ".NET Framework " ${CSHARP_LIBRARY_VERSION} " cannot be built with the available SDKs. C# Bindings will not be built" )
   RETURN ()
 endif ()
-if ( NOT ( _CSHARP_LIBRARY_TFM_NUMBER STREQUAL _CSHARP_APPLICATION_TFM_NUMBER ) )
+if (CSHARP_BUILD_SAMPLES)
+  message(STATUS "Requested Application .NET target framework: " ${CSHARP_APPLICATION_VERSION} )
+  if ( NOT ( _CSHARP_LIBRARY_TFM_NUMBER STREQUAL _CSHARP_APPLICATION_TFM_NUMBER ) )
+    
+    set(_FOUND_COMPATIBLE_RUNTIME FALSE)
 
-  set(_FOUND_COMPATIBLE_RUNTIME FALSE)
+    foreach(RT IN LISTS DOTNET_RUNTIMES)
+        if(RT VERSION_GREATER_EQUAL _CSHARP_APPLICATION_TFM_NUMBER)
+            set(_FOUND_COMPATIBLE_RUNTIME TRUE)
+            break()
+        endif()
+    endforeach()
 
-  foreach(RT IN LISTS DOTNET_RUNTIMES)
-      if(RT VERSION_GREATER_EQUAL _CSHARP_APPLICATION_TFM_NUMBER)
-          set(_FOUND_COMPATIBLE_RUNTIME TRUE)
-          break()
-      endif()
-  endforeach()
-
-  if ( _FOUND_COMPATIBLE_RUNTIME )
-    message(STATUS ".NET Framework " ${CSHARP_APPLICATION_VERSION} " can be built" )
-  else ()
-    message(STATUS ".NET Framework " ${CSHARP_APPLICATION_VERSION} " cannot be built with the available SDKs. C# Bindings will not be built" )
+    if ( _FOUND_COMPATIBLE_RUNTIME )
+      message(STATUS ".NET Framework " ${CSHARP_APPLICATION_VERSION} " can be built" )
+    else ()
+      message(STATUS ".NET Framework " ${CSHARP_APPLICATION_VERSION} " cannot be built with the available SDKs. C# Bindings will not be built" )
       RETURN ()
-    endif ()  
-endif ()
-
+    endif (_FOUND_COMPATIBLE_RUNTIME)  
+  endif ()
+else(CSHARP_BUILD_SAMPLES)
+  message(STATUS "C# sample applications will not be built")
+endif (CSHARP_BUILD_SAMPLES)
 
 set(_VERSION_STRING ${GDAL_VERSION_NO_DEV_SUFFIX})
 if (GDAL_DEV_SUFFIX)
@@ -249,14 +256,16 @@ function (gdal_csharp_dll)
       ${_CSHARP_SYSTEM_DEPENDS})
 
   set(_CSHARP_IMPORTS ${CMAKE_CURRENT_BINARY_DIR}/${_CSHARP_TARGET_SUBDIR}/${_CSHARP_TARGET})
-  list(APPEND ${CMAKE_CURRENT_BINARY_DIR}/${_PACKAGE_NAME}.${_VERSION_STRING}.nupkg)
+  if (CSHARP_INSTALL_NUGET_PACKAGES)
+    list(APPEND ${CMAKE_CURRENT_BINARY_DIR}/${_PACKAGE_NAME}.${_VERSION_STRING}.nupkg)
+  endif (CSHARP_INSTALL_NUGET_PACKAGES)
 
   install(
     FILES ${_CSHARP_IMPORTS}
     COMPONENT csharp
     DESTINATION ${GDAL_CSHARP_INSTALL_DIR})
 
-endfunction ()
+endfunction (gdal_csharp_dll)
 
 # ######################################################################################################################
 gdal_csharp_wrap(
@@ -393,14 +402,15 @@ function (gdal_build_csharp_sample)
     list(APPEND _GCBS_IMPORTS ${_GBCS_PROJ})
   endif ()
   list(APPEND _GCBS_IMPORTS ${_GBCS_PROJ}.dll)
-  list(APPEND ${_GBCS_PROJ}.nupkg)
-  install(
-    DIRECTORY ${_GBCS_PROJ_PATH}
-    COMPONENT csharp
-    DESTINATION ${GDAL_CSHARP_INSTALL_DIR}
-    FILES_MATCHING
-    PATTERN "*.json")
-
+  if (CSHARP_INSTALL_NUGET_PACKAGES)
+    list(APPEND ${_GBCS_PROJ}.nupkg)
+    install(
+      DIRECTORY ${_GBCS_PROJ_PATH}
+      COMPONENT csharp
+      DESTINATION ${GDAL_CSHARP_INSTALL_DIR}
+      FILES_MATCHING
+      PATTERN "*.json")
+  endif (CSHARP_INSTALL_NUGET_PACKAGES)
   install(
     FILES ${_GCBS_IMPORTS}
     COMPONENT csharp
@@ -414,7 +424,7 @@ add_custom_target(csharp_interface DEPENDS gdalconst_wrap osr_wrap ogr_wrap gdal
 # Custom Target to make the c# bindings - will be run as part of ALL but can also be built separately
 add_custom_target(csharp_binding ALL DEPENDS csharp_interface OSGeo.GDAL.CONST OSGeo.GDAL OSGeo.OGR OSGeo.OSR)
 
-if (BUILD_TESTING)
+if (CSHARP_BUILD_SAMPLES)
 
     # Build the samples
     gdal_build_csharp_sample(
@@ -603,8 +613,9 @@ if (BUILD_TESTING)
         OSGeo.OGR
         OSGeo.OSR)
 
+    # Note the executable name change to avoid possible name clash
     gdal_build_csharp_sample(
-      OUTPUT GDALWarp.exe
+      OUTPUT GDALCsharpWarp.exe
       SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/apps/GDALWarp.cs
       DEPENDS
         gdal_csharp
@@ -643,98 +654,97 @@ if (BUILD_TESTING)
               OSGeo.GDAL.Samples.GDALTestUtf8
               OSGeo.GDAL.Samples.GDALTest
               OSGeo.GDAL.Samples.OGRLayerAlg
-              OSGeo.GDAL.Samples.GDALWarp
+              OSGeo.GDAL.Samples.GDALCsharpWarp
               OSGeo.GDAL.Samples.OGRFeatureEdit
               OSGeo.GDAL.Samples.GetCRSInfo.exe)
 
     # set up the tests
+endif(CSHARP_BUILD_SAMPLES)
+if (CSHARP_RUN_TESTS)
 
     include(GdalSetRuntimeEnv)
     gdal_set_runtime_env(TEST_ENV)
 
-    set(_ex)
-    if (CSHARP_INTERPRETER)
-      set(_ex ".exe")
-    endif ()
-
     add_test(
       NAME csharp_createdata
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} CreateData/CreateData${_ex} Data pointlayer)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/CreateData/CreateData Data pointlayer)
     set_property(TEST csharp_createdata PROPERTY ENVIRONMENT "${TEST_ENV}")
     add_test(
       NAME csharp_ogrinfo
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} OgrInfo/OgrInfo${_ex} Data/pointlayer.shp)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/OgrInfo/OgrInfo Data/pointlayer.shp)
     set_property(TEST csharp_ogrinfo PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_ogrinfo PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_osrtransform
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} OSRTransform/OSRTransform${_ex})
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/OSRTransform/OSRTransform)
     set_property(TEST csharp_osrtransform PROPERTY ENVIRONMENT "${TEST_ENV}")
     add_test(
       NAME csharp_gdalwrite
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GDALWrite/GDALWrite${_ex} Data/sample.tif)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALWrite/GDALWrite Data/sample.tif)
     set_property(TEST csharp_gdalwrite PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_gdalwrite PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_gdaldatasetwrite
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GDALDatasetWrite/GDALDatasetWrite${_ex} Data/sample1.tif)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALDatasetWrite/GDALDatasetWrite Data/sample1.tif)
     set_property(TEST csharp_gdaldatasetwrite PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_gdaldatasetwrite PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_gdalcreatecopy
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GDALCreateCopy/GDALCreateCopy${_ex} Data/sample.tif Data/sample2.tif)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALCreateCopy/GDALCreateCopy Data/sample.tif Data/sample2.tif)
     set_property(TEST csharp_gdalcreatecopy PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_gdalcreatecopy PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_gdalreaddirect
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GDALReadDirect/GDALReadDirect${_ex} Data/sample.tif Data/sample.png)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALReadDirect/GDALReadDirect Data/sample.tif Data/sample.png)
     set_property(TEST csharp_gdalreaddirect PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_gdalreaddirect PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_gdaloverviews
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GDALOverviews/GDALOverviews${_ex} Data/sample.tif NEAREST 2 4)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALOverviews/GDALOverviews Data/sample.tif NEAREST 2 4)
     set_property(TEST csharp_gdaloverviews PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_gdaloverviews PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_gdalinfo
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GDALInfo/GDALInfo${_ex} Data/sample.tif)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALInfo/GDALInfo Data/sample.tif)
     set_property(TEST csharp_gdalinfo PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_gdalinfo PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_ogrlayeralg
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} OGRLayerAlg/OGRLayerAlg${_ex} Intersection Data/pointlayer.shp pointlayer
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/OGRLayerAlg/OGRLayerAlg Intersection Data/pointlayer.shp pointlayer
               Data/pointlayer.shp pointlayer Data intersectionresult)
     set_property(TEST csharp_ogrlayeralg PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_ogrlayeralg PROPERTY DEPENDS csharp_createdata)
     add_test(
       NAME csharp_ogrlayeralgresult
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} OgrInfo/OgrInfo${_ex} Data/intersectionresult.shp)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/OgrInfo/OgrInfo Data/intersectionresult.shp)
     set_property(TEST csharp_ogrlayeralgresult PROPERTY ENVIRONMENT "${TEST_ENV}")
     set_property(TEST csharp_ogrlayeralgresult PROPERTY DEPENDS csharp_ogrlayeralg)
-    # GDALWarp test disabled until updated and the dependency on autotest is removed dur to possible clash with a standalone
-    # build add_test( NAME csharp_gdalwarp WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} COMMAND ${CSHARP_INTERPRETER}
-    # GDALWarp/GDALWarp Data/testwarp.tif "-of GTiff -t_srs EPSG:32645 -overwrite" "../../autotest/gcore/data/byte.tif")
-    # set_property(TEST csharp_gdalwarp PROPERTY ENVIRONMENT "${TEST_ENV}") set_property(TEST csharp_gdalwarp PROPERTY
-    # DEPENDS csharp_createdata)
+    add_test( 
+      NAME csharp_gdalwarp
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALCsharpWarp/GDALCsharpWarp Data/testwarp.tif "-of GTiff -t_srs EPSG:32645 -overwrite" "Data/byte.tif")
+      set_property(TEST csharp_gdalwarp PROPERTY ENVIRONMENT "${TEST_ENV}")
+      set_property(TEST csharp_gdalwarp PROPERTY DEPENDS csharp_createdata)
+      file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/../../autotest/gcore/data/byte.tif DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Data/)
     add_test(
       NAME csharp_getcrsinfo
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GetCRSInfo/GetCRSInfo${_ex} "EPSG" 20)
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GetCRSInfo/GetCRSInfo "EPSG" 20)
     set_property(TEST csharp_getcrsinfo PROPERTY ENVIRONMENT "${TEST_ENV}")
     add_test(
       NAME csharp_testutf8
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-      COMMAND ${CSHARP_INTERPRETER} GDALTestUtf8/GDALTestUtf8${_ex})
+      COMMAND ${CMAKE_CURRENT_BINARY_DIR}/GDALTestUtf8/GDALTestUtf8)
     set_property(TEST csharp_testutf8 PROPERTY ENVIRONMENT "${TEST_ENV}")
-endif()
+endif(CSHARP_RUN_TESTS)

@@ -32,22 +32,51 @@ Building as part of a GDAL Build
 
 The build environment uses the following variables:
 
-+---------------------------+------------+-----------------------------------------------+
-| CSHARP_MONO               | Boolean    | Forces the use of Mono                        |
-+---------------------------+------------+-----------------------------------------------+
-| CSHARP_LIBRARY_VERSION    | String     | Set the .NET version for the shared libraries |
-+---------------------------+------------+-----------------------------------------------+
-| CSHARP_APPLICATION_VERSION| String     | Set the .NET version for the sample apps      |
-+---------------------------+------------+-----------------------------------------------+
-| GDAL_CSHARP_ONLY          | Boolean    | Build standalone on GDAL binaries             |
-+---------------------------+------------+-----------------------------------------------+
-| BUILD_CSHARP_BINDINGS     | Boolean    | Build the C# bindings DEFAULT ON              |
-+---------------------------+------------+-----------------------------------------------+
+.. option:: BUILD_CSHARP_BINDINGS:BOOL=ON/OFF
 
-Building with .NET
-------------------
+    Whether C# bindings should be built. It is ON by default, but only
+    effective a valid .NET SDK is found.
 
-If the build environment has .NET 5.0 installed and GDAL is built, then the c# bindings will be built using .NET by default.
+.. option:: CSHARP_LIBRARY_VERSION
+
+    Sets the .NET target Framework (in TFM format) to be used when compiling the C# binding libraries. `List of acceptable contents for .NET <https://docs.microsoft.com/en-us/dotnet/standard/frameworks#supported-target-frameworks>`_.
+    Defaults to `netstandard2.0`.
+
+.. option:: CSHARP_APPLICATION_VERSION
+
+    Sets the .NET target Framework (in TFM format) to be used when compiling the C# sample applications. `List of acceptable contents for .NET <https://docs.microsoft.com/en-us/dotnet/standard/frameworks#supported-target-frameworks>`_. 
+    Defaults to the highest version installed on the build system, i.e. `latest`.
+
+.. option:: GDAL_CSHARP_ONLY=OFF/ON
+
+    Build the C# bindings without building GDAL. This should be used when building the bindings on top of an existing GDAL installation - for instance on top of the CONDA package.
+
+.. option:: CSHARP_BUILD_SAMPLES=OFF/ON
+
+    Whether to build the C# sample applications. Defaults to the value of `BUILD_TESTING` (i.e. ON when tests are enabled, OFF otherwise).
+
+.. option:: CSHARP_RUN_TESTS=OFF/ON
+
+    Whether to run the C# tests. Defaults to the value of `CSHARP_BUILD_SAMPLES` (i.e. ON when tests are enabled, OFF otherwise).
+
+.. option:: CSHARP_INSTALL_NUGET_PACKAGE=OFF/ON
+
+    Whether to install the generated NuGet packages for the C# bindings. Defaults to ON.
+
+.. note::
+
+    It is possible using these switches to force the sample apps NOT to be built but to force the tests to be created based on those apps. Those tests are guaranteed to fail.
+
+.. note::
+
+    The C# bindings are made of several modules (OSGeo.GDAL, OSGeo.OGR, etc.)
+    which link each against libgdal. Consequently, a static build of libgdal is
+    not compatible with the bindings.
+
+Building the Bindings
+---------------------
+
+If the build environment has `dotnet` installed, and the `BUILD_CSHARP_BINDINGS` switch is `ON` (the default), then the C# bindings will be built when GDAL is built.
 
 The details of building GDAL are documented elsewhere, but there are likely to be variants of the following commands run from the root directory of the gdal repository:
 
@@ -57,7 +86,7 @@ The details of building GDAL are documented elsewhere, but there are likely to b
     cmake --build ../build --config Release
     cmake --build ../build --config Release --target install
 
-The C# bindings and sample apps are installed in the install directory (in the above case that would be `../install`, in the `share/csharp` sub folder. There would be the following files:
+The C# bindings and sample apps are installed in the install directory. In the above case that would be `../install`, in the `share/csharp` sub folder. There would be the following files:
 
 * :file:`gdal_csharp.dll`
 * :file:`ogr_csharp.dll`
@@ -80,10 +109,10 @@ There are also the following NuGET packages:
 * :file:`OSGeo.GDAL.CONST`
 * various sample application
 
-Using the .NET Bindings
+Using the C# Bindings
 -----------------------
 
-The easiest way to use the bindings in development would be use the NuGET packages created.
+The easiest way to use the bindings in development is to use the NuGET packages created.
 
 To do this you need to add a local repository pointing to the GDAL install directory. `This is explained here <https://docs.microsoft.com/en-us/nuget/hosting-packages/local-feeds>`__ .
 
@@ -140,7 +169,7 @@ This is in more detail in `the Mono documentation <https://www.mono-project.com/
 Building Standalone
 +++++++++++++++++++
 
-The Bindings using both the .NET or Mono toolchains can be build on top of an existing implementation of GDAL
+The Bindings can be built on top of an existing installation of GDAL
 that includes the include files and libs - for instance the Conda distribution.
 
 To do this, Cmake must be run with the GDAL_CSHARP_ONLY flag set and only one of the following targets should be built:
