@@ -13,26 +13,24 @@ conda config --show-sources
 
 conda config --show
 
-conda install -c conda-forge conda-build -y
+conda install -c conda-forge rattler-build yq -y
 
 git clone  https://github.com/conda-forge/gdal-feedstock.git
 
 cd gdal-feedstock
 
-# Patch version = "X.Y.Z" to "X.Y.99"
-sed -E 's/version = "([0-9]+)\.([0-9]+)\.([0-9]+)"/version = "\1.\2.99"/' < recipe/meta.yaml > meta.yaml
-mv meta.yaml recipe/meta.yaml
+# Patch version: "X.Y.Z" to "X.Y.99"
+sed -E 's/version: "([0-9]+)\.([0-9]+)\.([0-9]+)"/version: "\1.\2.99"/' < recipe/recipe.yaml > recipe.yaml
+mv recipe.yaml recipe/recipe.yaml
 
 cat > recipe/recipe_clobber.yaml <<EOL
 source:
   path: ../../../gdal
-  url:
-  sha256:
-  patches:
 
 build:
   number: 2112
 EOL
 
+yq -y -s '.[0] as $base | .[1] as $patch | ($base * $patch) | .source = $patch.source' recipe/recipe.yaml recipe/recipe_clobber.yaml > recipe/recipe_patched.yaml
 
 ls recipe
