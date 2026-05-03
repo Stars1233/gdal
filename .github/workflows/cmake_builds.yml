@@ -433,6 +433,14 @@ jobs:
         use-mamba: true
         auto-update-conda: true
         use-only-tar-bz2: false
+
+    - name: Remove conflicting libraries
+      shell: bash -l {0}
+      run: |
+          rm -rf C:/Strawberry || /bin/true
+          rm -rf "C:/Program Files/OpenSSL/lib" || /bin/true
+          rm -rf "C:/hostedtoolcache/windows/Python" || /bin/true
+
     - name: Install dependency
       shell: bash -l {0}
       run: |
@@ -454,13 +462,6 @@ jobs:
         curl -LOs https://github.com/rouault/pdfium_build_gdal_3_13/releases/download/pdfium_7724_v1/install-win10-vs2026-x64-rev7724.zip
         unzip install-win10-vs2026-x64-rev7724.zip
         mv install install-pdfium
-
-    - name: Remove conflicting libraries
-      shell: bash -l {0}
-      run: |
-          rm -rf C:/Strawberry || /bin/true
-          rm -rf "C:/Program Files/OpenSSL/lib" || /bin/true
-          rm -rf "C:/hostedtoolcache/windows/Python" || /bin/true
 
     - name: Configure
       shell: bash -l {0}
