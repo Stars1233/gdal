@@ -3407,6 +3407,12 @@ def test_ogr_gmlas_get_gml_and_iso_schemas(tmp_path):
 @pytest.mark.require_curl()
 def test_ogr_gmlas_bugfix_sf_2371():
 
+    # Fails with ERROR 1: http://docs.oasis-open.org/election/external/xAL.xsd:1:1342 element name expected
+    if gdaltest.is_travis_branch("cmake-ubuntu-noble") or gdaltest.is_travis_branch(
+        "ubuntu_2204"
+    ):
+        pytest.skip()
+
     urls = (
         "http://repository.gdi-de.org/schemas/adv/citygml/building/1.0/buildingLoD1.xsd",
         "http://docs.oasis-open.org/election/external/xAL.xsd",
@@ -3492,6 +3498,12 @@ def test_ogr_gmlas_choice_inlined(filename, attrname, value):
 
 @pytest.mark.require_curl()
 def test_ogr_gmlas_citygml_lod2_no_schema_location():
+
+    # Fails with ERROR 1: http://docs.oasis-open.org/election/external/xAL.xsd:1:1342 element name expected
+    if gdaltest.is_travis_branch("cmake-ubuntu-noble") or gdaltest.is_travis_branch(
+        "ubuntu_2204"
+    ):
+        pytest.skip()
 
     urls = (
         "http://repository.gdi-de.org/schemas/adv/citygml/building/1.0/buildingLoD1.xsd",
