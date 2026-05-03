@@ -681,7 +681,7 @@ void GDALRegister_MRF()
         "       JFIF - boolean, for JPEG, disable brunsli encoding\n"
 #endif
 #if defined(QB3_SUPPORT)
-        "       QB3_BAND_MAP - space separted list of band indices for "
+        "       QB3_BAND_MAP - space separated list of band indices for "
         "band to band decorrelation\n"
 #endif
         "'/>"
