@@ -4939,6 +4939,12 @@ def test_vsis3_random_write_gtiff_create_copy(aws_test_config, webserver_port):
     gdal.VSICurlClearCache()
 
     handler = webserver.SequentialHandler()
+    handler.add(
+        "GET",
+        "/random_write/?delimiter=%2F&list-type=2",
+        404,
+        {},
+    )
     handler.add("GET", "/random_write/test.tif", 404, {})
     handler.add(
         "GET",
@@ -4946,7 +4952,34 @@ def test_vsis3_random_write_gtiff_create_copy(aws_test_config, webserver_port):
         404,
         {},
     )
-
+    handler.add("GET", "/random_write/test.xml", 404, {})
+    handler.add(
+        "GET",
+        "/random_write/?delimiter=%2F&list-type=2&max-keys=100&prefix=test.xml%2F",
+        404,
+        {},
+    )
+    handler.add("GET", "/random_write/test.XML", 404, {})
+    handler.add(
+        "GET",
+        "/random_write/?delimiter=%2F&list-type=2&max-keys=100&prefix=test.XML%2F",
+        404,
+        {},
+    )
+    handler.add("GET", "/random_write/test.hdr", 404, {})
+    handler.add(
+        "GET",
+        "/random_write/?delimiter=%2F&list-type=2&max-keys=100&prefix=test.hdr%2F",
+        404,
+        {},
+    )
+    handler.add("GET", "/random_write/test.HDR", 404, {})
+    handler.add(
+        "GET",
+        "/random_write/?delimiter=%2F&list-type=2&max-keys=100&prefix=test.HDR%2F",
+        404,
+        {},
+    )
     src_ds = gdal.Open("data/byte.tif")
 
     with gdaltest.config_option(
