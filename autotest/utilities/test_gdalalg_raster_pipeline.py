@@ -664,7 +664,7 @@ def test_gdalalg_raster_pipeline_to_gdalg_step_non_natively_streamable(
         gdal.Run(
             "raster",
             "pipeline",
-            pipeline=f"read {src_filename} ! fill-nodata ! write {tmp_vsimem}/out.gdalg.json",
+            pipeline=f'read "{src_filename}" ! fill-nodata ! write {tmp_vsimem}/out.gdalg.json',
         )
 
     if gdal.GetDriverByName("GDALG"):
