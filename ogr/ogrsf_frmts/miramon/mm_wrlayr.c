@@ -2229,7 +2229,7 @@ static int MMClosePolygonLayer(struct MiraMonVectLayerInfo *hMiraMonLayer)
 
 end_label:
     fclose_and_nullify(&pMMPolygonLayer->pF);
-
+    fclose_and_nullify(&pMMPolygonLayer->pFPS);
     fclose_and_nullify(&pMMPolygonLayer->pFPAL);
 
     return ret_code;
