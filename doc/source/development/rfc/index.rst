@@ -118,3 +118,4 @@ RFC list
     rfc109_gdal_cpp_api
     rfc110_jit_compilation
     rfc111_ai_tool_policy
+    rfc112_dropmono
