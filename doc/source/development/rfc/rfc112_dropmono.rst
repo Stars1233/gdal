@@ -9,6 +9,7 @@ Author:        Paul Harwood
 Contact:       runette @ gmail.com
 Started:       2026-04-14
 Status:        Adopted, implemented
+Target:        GDAL 3.14
 ============== =============================================
 
 Summary
