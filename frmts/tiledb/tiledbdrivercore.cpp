@@ -61,7 +61,14 @@ int TileDBDriverIdentifySimplified(GDALOpenInfo *poOpenInfo)
         STARTS_WITH_CI(poOpenInfo->pszFilename, "/VSIGS/") ||
         STARTS_WITH_CI(poOpenInfo->pszFilename, "/VSIAZ/");
     // If this is a /vsi virtual file systems, bail out, except if it is AZ, S3 or GS.
-    if (!bIsS3OrGSOrAz && STARTS_WITH_CI(poOpenInfo->pszFilename, "/VSI"))
+    if (bIsS3OrGSOrAz)
+    {
+        // HACK: probing a non existing object takes a lot of time, so avoid
+        // doing that on filenames that are (hopefully) not TileDB.
+        if (poOpenInfo->IsExtensionEqualToCI("tif"))
+            return false;
+    }
+    else if (STARTS_WITH_CI(poOpenInfo->pszFilename, "/VSI"))
     {
         return false;
     }
