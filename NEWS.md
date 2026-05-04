@@ -1,6 +1,4 @@
-# GDAL/OGR 3.13.0dev *preliminary* Release Notes
-
-up to commit 4678d1ca474c0a066c1a6418ff30d97e8b0a90bc (April 22th 2026)
+# GDAL/OGR 3.13.0 "Iowa City" Release Notes
 
 GDAL 3.13.0 is a feature release
 These notes include changes since GDAL 3.12.0, but not already included in a
@@ -128,6 +126,7 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.13/MIGRAT
   (#14221)
 * RasterIO resampling: fix wrong NaN handling for bilinear/cubic/cubicspline/
   lanczos when the band nodata value is also NaN (#14353)
+* GDALRasterBand::IRasterIO(): avoid potential int overflow (ossfuzz#506741816)
 * Add GDALCloseEx(), GDALDataset::GetCloseReportsProgress(), and add progress
   callback to GDALDataset::Close()
 * Add GDALDataset::CanReopenWithCurrentDescription()
@@ -167,6 +166,7 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.13/MIGRAT
   write support (#13750)
 * GDALAlgorithm: better handle quiet mode in pipelines
 * GDALAlgorithm: make --overwrite failures verbose
+* GDALAlgorithm: check Run() is called at most once per instance
 * Add GDALAlgorithmArg::SetMaxCharCount()
 * Add GDALAlgorithmArg::SetDuplicateValuesAllowed()
 * GDALAlgorithm::ParseCommandLineArguments(): fix for list-type of argument
@@ -189,6 +189,7 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.13/MIGRAT
 
 ### Raster utilities
 
+* gdal: make sure stdout is properly flushed (#14477)
 * gdal --format {format}: advertise GDAL_DCAP_CURVE_GEOMETRIES,
   GDAL_DCAP_Z_GEOMETRIES, GDAL_DCAP_MEASURED_GEOMETRIES
 * gdal mdim info: add --summary
@@ -213,6 +214,7 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.13/MIGRAT
 * gdal raster color-map: detect UTF-16 encoded text color map files (#13661)
 * gdal raster color-map: make it work better with pipelines (#13740)
 * gdal raster contour/polygonize: expose --output-layer for pipeline mode
+* gdal raster contour: rename --src-nodata to --input-nodata
 * gdal raster create: enable use in pipelines
 * gdal raster create: make sure the like argument is not positional (#14056)
 * gdal raster create: replicate --like tiling when possible
@@ -221,22 +223,36 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.13/MIGRAT
 * gdal raster edit: add --scale and --offset (#14213)
 * gdal raster edit: avoid error when used within a pipeline and previous step
   is anonymous VRT (#14331)
+* gdal raster edit: add --color-map to set a color table on a band, and
+  --unset-color-table to remove it
+* gdal raster footprint: rename --dst-crs to --output-crs
+* gdal raster footprint: rename --src-nodata to --input-nodata
 * gdal raster info: emit short form for CRS if possible, and add a
   --crs-format=AUTO|WKT2|PROJJSON, only for --format=text
 * gdal raster index: add --profile=STAC-GeoParquet --id-method=filename/md5/
   metadata-item --id-metadata-item=<name> --base-url=<url> (#13419)
+* gdal raster index: rename --dst-crs to --output-crs
 * gdal raster pixel-info: add --promote-pixel-value-to-z, --position-dataset,
   --layer, --include-field, --output arguments
 * gdal raster pixel-info: make it possible to use it in 'gdal pipeline'
 * gdal raster reproject: add --like argument (#1375)
-* gdal raster rgb-to-palette: add --dst-nodata, --no-dither and --bit-depth
+* gdal raster reproject: rename --src-crs and --dst-crs to --input-crs and
+  --output-crs
+* gdal raster reproject: rename --src-nodata,--dst-nodata to --input-nodata,
+  --output-nodata
+* gdal raster rgb-to-palette: add --output-nodata, --no-dither and --bit-depth
   arguments
-* gdal raster update: allow it to be a step of a pipeline
-* gdal raster update: remove 'dataset' alias for 'input'
+* gdal raster scale: rename --[src/dst][min/max] to --[input/output][min/max]
 * gdal raster select: make --band accept color interpretation such as red,
   green, blue, alpha, nir, etc
 * gdal raster select: add --exclude to exclude band(s) specified with --band,
   similarly to vector select (#14098)
+* gdal raster stack/mosaic: rename --src-nodata,--dst-nodata to --input-nodata,
+  --output-nodata
+* gdal raster tile: rename --dst-nodata to --output-nodata
+* gdal raster update: allow it to be a step of a pipeline
+* gdal raster update: remove 'dataset' alias for 'input'
+* gdal raster viewshed: rename --dst-nodata to --output-nodata
 * gdal raster zonal stats: handle --output-layer (#14371)
 * gdal raster zonal-stats: fix alloc of buffers for cell center coords (#14371)
 * gdal raster zonal-stats: accept --include-field ALL and NONE
@@ -267,8 +283,13 @@ See [MIGRATION_GUIDE.TXT](https://github.com/OSGeo/gdal/blob/release/3.13/MIGRAT
 * gdal2tiles.py: make it use 'gdal raster tile' underneath
 * Remove non-built by default 'gdal2ogr' program (use 'gdal raster as-features'
   instead)
+* gdal-bash-completion: make it msys2 compatible
 
 ### Raster drivers
+
+AIG driver:
+ * avoid potential stack buffer overflow in CCITTRLE code, and a read heap
+   buffer overflow when opening 'hdr.adf' (#14469)
 
 AVIF driver:
  * support encoding/decoding 16-bit depth with libavif >= 1.4
@@ -295,6 +316,8 @@ GIF driver:
 
 GRIB driver:
  * update GRIB2 tables to wmo-im/GRIB2 v36
+ * fix heap-Buffer-Overflow WRITE on corrupted/hostile data (#14455)
+ * avoid heap-buffer-overflow in specunpack() (#14470)
 
 GTI driver:
  * allow 'stac_extensions' field (in addition to 'stac_version') to be a marker
@@ -320,7 +343,7 @@ GTiff driver:
  * Internal libtiff: resynchronization with upstream
 
 HDF4 driver:
- * HDF4-EOS: fix heap-buffer-overflow/nullptr-deref (#14356)
+ * HDF4-EOS: fix various vulnerabilities (#14356, #14428, #14430, #14431, #14440)
 
 HDF5 driver:
  * add support for georefencing of NISAR Level 2 products
@@ -328,6 +351,10 @@ HDF5 driver:
 
 HTTP driver:
  * few tweaks to recognize 'HTTP:http[s]//', and work with XLSX/DS files
+
+ISIS3 driver:
+ * correctly deal with PVL keys with '/' character in JSON representation
+   (#14443)
 
 JP2OpenJPEG driver:
  * writer: fix duplicate type/association pairs in CDEF box for 3 grey
@@ -351,6 +378,9 @@ MiramonRaster driver:
    rasters
  * updates related to subdatasets, table color and RAT, unit type
 
+MRF driver:
+ * Fix against corrupted/hostile data (#14472)
+
 netCDF driver:
  * Handle port numbers in GDALGetSubdatasetInfo
  * Handle path with no drive letter or subdataset name in GDALGetSubdatasetInfo
@@ -366,9 +396,11 @@ NITF driver:
  * NITFWriteIGEOLO(): make it more tolerant to products overlapping antimeridian
  * make NITF_FDT and NITF_IDATIM creation option accept special value 'NOW'
  * Prevent missing creation option metadata if JPEG not supported
+ * fix potential stack buffer overflow in NITFLoadAttributeSection() (#14449)
 
 PCIDSK driver:
  * improve nodata support (#14214)
+ * avoid integer overflow (ossfuzz#500171204)
 
 PDF driver:
  * add a SAVE_DPI_TO_PAM open option
@@ -421,12 +453,18 @@ S111 driver:
 TileDB driver:
  * Fetch and set band names from TileDB schema attributes (#13787)
  * ensure read access right for OpenGroup() and OpenMDArray()
+ * do not try to identify /vsis3/.../file.tif files
 
 VRT driver:
  * Add 'area' derived pixel function (#13797)
  * add 'quantile' derived pixel function (#13468)
  * Add 'round' derived pixel function (#13795)
  * Add `block` option to vrt:// connection protocol (#13786)
+ * fix heap-buffer-overflow on misconfigured VRTProcessedDataset (#14462)
+
+WMS driver:
+ * WMSDriverSubdatasetInfo::parseFileName(): fix crash if LAYERS= is not fully
+   capitalized (ossfuzz#505232394)
 
 Zarr driver:
  * V3: add support for reading, updating and creation of consolidated_metadata
@@ -491,9 +529,13 @@ Zarr driver:
   domain, relationships and metadata
 * gdal vector buffer: automatically set output geometry field type to
   MultiPolygon (#13512)
+* gdal vector concat: rename --src-crs and --dst-crs to --input-crs and
+  --output-crs
 * gdal vector check-geometry: set output layer type to MultiPoint (#13844)
 * gdal vector check-geometry: support --include-field ALL
 * gdal vector clip: error out if clip geometry becomes invalid on reprojection
+* gdal vector clip: make it preserve aspatial layers in passthroug mode, rather
+  than wiping out their features (#14438)
 * gdal vector edit: add --output-layer in pipeline mode too (#14389)
 * gdal vector filter: add --update-extent (#13519)
 * gdal vector info: emit short form for CRS if possible, and add a
@@ -501,9 +543,12 @@ Zarr driver:
 * gdal vector info: propagate source driver when --layer is specified
 * Remove 'gdal vector geom XXXX' deprecated in GDAL 3.12 in favor of direct
   'gdal vector XXXX'
+* gdal vector index: rename --dst-crs to --output-crs
 * gdal vector info: fix so it can be used in a pipeline
 * gdal vector info: remove deprecated --update option
 * gdal vector info: implement --fid (#13763)
+* gdal vector make-point: rename --dst-crs to --output-crs
+* gdal vector materialize: fix issues with SQLite format (#14444)
 * gdal vector partition: also accept geometry fields, to partition on geometry
   type
 * gdal vector partition: automatically generate the '_metadata' index of
@@ -517,6 +562,12 @@ Zarr driver:
   can get field domains and relationships
 * gdal vector rasterize: improve error message when invalid options paired with
   --update (#13771)
+* gdal vector rasterize: make --tap depends on --resolution (#14458)
+* gdal vector reproject: rename --src-crs and --dst-crs to --input-crs and
+  --output-crs
+* gdal vector reproject/clean-coverage/simplify-coverage: make it passthrough
+  for non-spatial layers (#14446)
+* gdal vector set-field-type: rename --src-field-type to --input-field-type
 * gdal vector select: expose --output-layer for pipeline mode
 * gdal vector select: check that output-layer is only specified if a single
   input layer is matched
@@ -606,6 +657,8 @@ OAPIF driver:
 OpenFileGDB driver:
   * organizePolygons(): deal with ring self-intersection and inner curve rings
     (#14277)
+  * when exploring layers in GDB_Items, report deleted rows with a warning
+    instead of a failure (#14424)
 
 Parquet driver:
  * Add 'gdal driver parquet create-metadata-file' to create the '_metadata'
@@ -621,6 +674,8 @@ PostGIS:
  * use full geometry intersection for SetSpatialFilter(), and not only bounding
    box (#13807)
  * add a SPATIAL_FILTER_INTERSECTION=LOCAL/SERVER open option
+ * avoid error when setting a NULL geometry field on a result layer without
+   geometry field
 
 S57 driver:
  * remove unused DDFRecordIndex::FindRecordByObjl() method
@@ -642,10 +697,12 @@ VFK driver:
 * Remove C types from Python docstrings
 * Remove sample script ogr_dispatch.py, replaced by "gdal vector partition"
 * Remove sample script ogrupdate.py, superseded per "gdal vector update"
-* Python bindings: make Dataset/Band.AdviseRead() accept keywords, and make
+* Make Dataset/Band.AdviseRead() accept keywords, and make
   Dataset.AdviseRead() query all bands by default
-* Python bindings: make gdal.config_option[s] error out on GDAL_CACHEMAX if
+* Make gdal.config_option[s] error out on GDAL_CACHEMAX if
   thread_local=True, and otherwise use gdal.SetCacheMax() (#14004)
+* Make gdal.alg.xxxx(...) accept aliases and hidden aliases of argument names
+* Handle numpy types in Feature.SetField
 
 ## Java bindings
 
