@@ -2547,6 +2547,18 @@ For more details on how to build and use the C# bindings read the dedicated sect
 
     Build the C# bindings without building GDAL. This should be used when building the bindings on top of an existing GDAL installation - for instance on top of the CONDA package.
 
+.. option:: CSHARP_BUILD_SAMPLES=OFF/ON
+
+    Whether to build the C# sample applications. Defaults to the value of `BUILD_TESTING` (i.e. ON when tests are enabled, OFF otherwise).
+
+.. option:: CSHARP_RUN_TESTS=OFF/ON
+
+    Whether to run the C# tests. Defaults to the value of `CSHARP_BUILD_SAMPLES` (i.e. ON when tests are enabled, OFF otherwise).
+
+.. option:: CSHARP_INSTALL_NUGET_PACKAGE=OFF/ON
+
+    Whether to install the generated NuGet packages for the C# bindings. Defaults to ON.
+
 .. note::
 
     The C# bindings are made of several modules (OSGeo.GDAL, OSGeo.OGR, etc.)

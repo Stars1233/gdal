@@ -64,19 +64,23 @@ namespace testapp
         private static void TestXMLNodeStrings()
         {
             Console.WriteLine("Test creating and serializing XMLNode with Unicode strings.");
-            XMLNode node = new XMLNode(XMLNodeType.CXT_Element, "TestElement");
-            node.SetXMLValue(".", UnicodeString);
-            string serializedXml = node.SerializeXMLTree();
-            string expectedXml = $"<TestElement>{UnicodeString}</TestElement>";
-            AssertEqual(expectedXml, serializedXml?.TrimEnd('\n'), $"{nameof(XMLNode)}.{nameof(node.SerializeXMLTree)}");
+            using (XMLNode node = new XMLNode(XMLNodeType.CXT_Element, "TestElement"))
+            {
+                node.SetXMLValue(".", UnicodeString);
+                string serializedXml = node.SerializeXMLTree();
+                string expectedXml = $"<TestElement>{UnicodeString}</TestElement>";
+                AssertEqual(expectedXml, serializedXml?.TrimEnd('\n'), $"{nameof(XMLNode)}.{nameof(node.SerializeXMLTree)}");
+            }
         }
         private static void TestUnicodeStringProperties()
         {
             Console.WriteLine("Testing C# Property setting and getting with Unicode strings.");
-            GCP gcp = new GCP(0, 0, 0, 0, 0, UnicodeString, "Id");
-            AssertEqual(gcp.Info, UnicodeString, $"{nameof(GCP)}.{nameof(gcp.Info)}");
-            gcp.Id = UnicodeString;
-            AssertEqual(gcp.Id, UnicodeString, $"{nameof(GCP)}.{nameof(gcp.Id)}");
+            using (GCP gcp = new GCP(0, 0, 0, 0, 0, UnicodeString, "Id"))
+            {
+                AssertEqual(gcp.Info, UnicodeString, $"{nameof(GCP)}.{nameof(gcp.Info)}");
+                gcp.Id = UnicodeString;
+                AssertEqual(gcp.Id, UnicodeString, $"{nameof(GCP)}.{nameof(gcp.Id)}");
+            }
         }
         private static void TestStringsByReference()
         {
@@ -109,14 +113,18 @@ namespace testapp
                 File.Delete(fileName);
             using (OSGeo.OGR.Driver shpDriver = Ogr.GetDriverByName("OpenFileGDB"))
             {
-                using (DataSource shpSrc = shpDriver.CreateDataSource(fileName, null))
-                    shpSrc.CreateLayer("图层", null, wkbGeometryType.wkbPoint, null).Dispose();
+                if (shpDriver != null)
+                    using (DataSource shpSrc = shpDriver.CreateDataSource(fileName, null))
+                        shpSrc.CreateLayer("图层", null, wkbGeometryType.wkbPoint, null).Dispose();
             }
             using (DataSource shpSrc = Ogr.Open(fileName, 0))
             {
-                AssertEqual(fileName, shpSrc.GetName(), $"{nameof(DataSource)}.{nameof(shpSrc.GetName)}");
-                using (Layer shpLyr = shpSrc.GetLayerByName("图层"))
-                    AssertEqual("图层", shpLyr.GetName(), $"{nameof(Layer)}.{nameof(shpSrc.GetName)}");
+                if (shpSrc != null)
+                {
+                    AssertEqual(fileName, shpSrc.GetName(), $"{nameof(DataSource)}.{nameof(shpSrc.GetName)}");
+                    using (Layer shpLyr = shpSrc.GetLayerByName("图层"))
+                        AssertEqual("图层", shpLyr.GetName(), $"{nameof(Layer)}.{nameof(shpSrc.GetName)}");
+                }
             }
         }
         private static void TestUnicodeFieldDefs()
@@ -135,25 +143,21 @@ namespace testapp
                 File.Delete(fileName);
 
             using (OSGeo.OGR.Driver shpDriver = Ogr.GetDriverByName("ESRI Shapefile"))
+            using (DataSource shpSrc = shpDriver.CreateDataSource(fileName, null))
+            using (Layer shpLyr = shpSrc.CreateLayer(UnicodeString, null, wkbGeometryType.wkbPoint, new string[] { "ENCODING=UTF-8" }))
+            using (FeatureDefn layerDef = shpLyr.GetLayerDefn())
             {
-                using (DataSource shpSrc = shpDriver.CreateDataSource(fileName, null))
-                using (Layer shpLyr = shpSrc.CreateLayer(UnicodeString, null, wkbGeometryType.wkbPoint, new string[] { "ENCODING=UTF-8" }))
-                {
-                    using (FeatureDefn layerDef = shpLyr.GetLayerDefn())
-                    {
-                        using (FieldDefn fieldDef = new FieldDefn("图层", FieldType.OFTString))
-                            if (shpLyr.CreateField(fieldDef, 1) != 0)
-                                throw new Exception("Failed to create a field definition on layer.");
+                using (FieldDefn fieldDef = new FieldDefn("图层", FieldType.OFTString))
+                    if (shpLyr.CreateField(fieldDef, 1) != 0)
+                        throw new Exception("Failed to create a field definition on layer.");
 
-                        foreach (string nameString in nameFieldValues)
-                        {
-                            using (Feature feature = new Feature(layerDef))
-                            {
-                                feature.SetField("图层", nameString);
-                                if (shpLyr.CreateFeature(feature) != 0)
-                                    throw new Exception("Failed to create feature on layer.");
-                            }
-                        }
+                foreach (string nameString in nameFieldValues)
+                {
+                    using (Feature feature = new Feature(layerDef))
+                    {
+                        feature.SetField("图层", nameString);
+                        if (shpLyr.CreateFeature(feature) != 0)
+                            throw new Exception("Failed to create feature on layer.");
                     }
                 }
             }

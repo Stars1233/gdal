@@ -187,31 +187,32 @@ class GDALRead
         int height = redBand.YSize;
 
         // Create a Bitmap to store the GDAL image in
-        Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb);
-
-        DateTime start = DateTime.Now;
-
-        byte[] r = new byte[width * height];
-        byte[] g = new byte[width * height];
-        byte[] b = new byte[width * height];
-
-        redBand.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
-        greenBand.ReadRaster(0, 0, width, height, g, width, height, 0, 0);
-        blueBand.ReadRaster(0, 0, width, height, b, width, height, 0, 0);
-        TimeSpan renderTime = DateTime.Now - start;
-        Console.WriteLine("SaveBitmapBuffered fetch time: " + renderTime.TotalMilliseconds + " ms");
-
-        int i, j;
-        for (i = 0; i < width; i++)
+        using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb))
         {
-            for (j = 0; j < height; j++)
-            {
-                Color newColor = Color.FromArgb(Convert.ToInt32(r[i + j * width]), Convert.ToInt32(g[i + j * width]), Convert.ToInt32(b[i + j * width]));
-                bitmap.SetPixel(i, j, newColor);
-            }
-        }
+            DateTime start = DateTime.Now;
 
-        bitmap.Save(filename);
+            byte[] r = new byte[width * height];
+            byte[] g = new byte[width * height];
+            byte[] b = new byte[width * height];
+
+            redBand.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
+            greenBand.ReadRaster(0, 0, width, height, g, width, height, 0, 0);
+            blueBand.ReadRaster(0, 0, width, height, b, width, height, 0, 0);
+            TimeSpan renderTime = DateTime.Now - start;
+            Console.WriteLine("SaveBitmapBuffered fetch time: " + renderTime.TotalMilliseconds + " ms");
+
+            int i, j;
+            for (i = 0; i < width; i++)
+            {
+                for (j = 0; j < height; j++)
+                {
+                    Color newColor = Color.FromArgb(Convert.ToInt32(r[i + j * width]), Convert.ToInt32(g[i + j * width]), Convert.ToInt32(b[i + j * width]));
+                    bitmap.SetPixel(i, j, newColor);
+                }
+            }
+
+            bitmap.Save(filename);
+        }
         redBand.Dispose();
         greenBand.Dispose();
         blueBand.Dispose();
@@ -243,28 +244,29 @@ class GDALRead
             int height = band.YSize;
 
             // Create a Bitmap to store the GDAL image in
-            Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb);
-
-            DateTime start = DateTime.Now;
-
-            byte[] r = new byte[width * height];
-
-            band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
-            TimeSpan renderTime = DateTime.Now - start;
-            Console.WriteLine("SaveBitmapBuffered fetch time: " + renderTime.TotalMilliseconds + " ms");
-
-            int i, j;
-            for (i = 0; i < width; i++)
+            using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb))
             {
-                for (j = 0; j < height; j++)
-                {
-                    ColorEntry entry = ct.GetColorEntry(r[i + j * width]);
-                    Color newColor = Color.FromArgb(Convert.ToInt32(entry.c1), Convert.ToInt32(entry.c2), Convert.ToInt32(entry.c3));
-                    bitmap.SetPixel(i, j, newColor);
-                }
-            }
+                DateTime start = DateTime.Now;
 
-            bitmap.Save(filename);
+                byte[] r = new byte[width * height];
+
+                band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
+                TimeSpan renderTime = DateTime.Now - start;
+                Console.WriteLine("SaveBitmapBuffered fetch time: " + renderTime.TotalMilliseconds + " ms");
+
+                int i, j;
+                for (i = 0; i < width; i++)
+                {
+                    for (j = 0; j < height; j++)
+                    {
+                        ColorEntry entry = ct.GetColorEntry(r[i + j * width]);
+                        Color newColor = Color.FromArgb(Convert.ToInt32(entry.c1), Convert.ToInt32(entry.c2), Convert.ToInt32(entry.c3));
+                        bitmap.SetPixel(i, j, newColor);
+                    }
+                }
+
+                bitmap.Save(filename);
+            }
         }
         band.Dispose();
     }
@@ -281,27 +283,28 @@ class GDALRead
         int height = band.YSize;
 
         // Create a Bitmap to store the GDAL image in
-        Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb);
-
-        DateTime start = DateTime.Now;
-
-        byte[] r = new byte[width * height];
-
-        band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
-        TimeSpan renderTime = DateTime.Now - start;
-        Console.WriteLine("SaveBitmapBuffered fetch time: " + renderTime.TotalMilliseconds + " ms");
-
-        int i, j;
-        for (i = 0; i < width; i++)
+        using (Bitmap bitmap = new Bitmap(width, height, PixelFormat.Format32bppRgb))
         {
-            for (j = 0; j < height; j++)
-            {
-                Color newColor = Color.FromArgb(Convert.ToInt32(r[i + j * width]), Convert.ToInt32(r[i + j * width]), Convert.ToInt32(r[i + j * width]));
-                bitmap.SetPixel(i, j, newColor);
-            }
-        }
+            DateTime start = DateTime.Now;
 
-        bitmap.Save(filename);
+            byte[] r = new byte[width * height];
+
+            band.ReadRaster(0, 0, width, height, r, width, height, 0, 0);
+            TimeSpan renderTime = DateTime.Now - start;
+            Console.WriteLine("SaveBitmapBuffered fetch time: " + renderTime.TotalMilliseconds + " ms");
+
+            int i, j;
+            for (i = 0; i < width; i++)
+            {
+                for (j = 0; j < height; j++)
+                {
+                    Color newColor = Color.FromArgb(Convert.ToInt32(r[i + j * width]), Convert.ToInt32(r[i + j * width]), Convert.ToInt32(r[i + j * width]));
+                    bitmap.SetPixel(i, j, newColor);
+                }
+            }
+
+            bitmap.Save(filename);
+        }
         band.Dispose();
     }
 }
