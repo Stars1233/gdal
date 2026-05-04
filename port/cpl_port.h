@@ -609,9 +609,9 @@ static inline char *CPL_afl_friendly_strstr(const char *haystack,
 #endif
 
 #if defined(CPL_LSB)
-#define CPL_IS_LSB 1
+#define CPL_IS_LSB (1 == 1)
 #else
-#define CPL_IS_LSB 0
+#define CPL_IS_LSB (0 == 1)
 #endif
 /*! @endcond */
 
@@ -1154,6 +1154,8 @@ extern "C++"
     template <class T> static void CPL_IGNORE_RET_VAL(const T &)
     {
     }
+
+    inline static bool CPL_TO_BOOL(bool x) = delete;
 
     inline static bool CPL_TO_BOOL(int x)
     {
