@@ -456,7 +456,8 @@ The following layer creation options are supported:
       value of **CRLF** (DOS format) or **LF** (Unix format).
 
 -  .. lco:: GEOMETRY
-      :choices: AS_WKT, AS_XYZ, AS_XY, AS_YX
+      :choices: AS_WKT, AS_XYZ, AS_XY, AS_YX, NONE
+      :default: NONE
 
       By default, the geometry of
       a feature written to a .csv file is discarded. It is possible to

@@ -351,6 +351,7 @@ void RegisterOGRCSV()
         "    <Value>AS_XYZ</Value>"
         "    <Value>AS_XY</Value>"
         "    <Value>AS_YX</Value>"
+        "    <Value>NONE</Value>"
         "  </Option>"
         "  <Option name='CREATE_CSVT' type='boolean' description='whether to "
         "create a .csvt file' default='NO'/>"
