@@ -376,8 +376,8 @@ test_ogr_s101_read_minimal_altered_record_params = [
     ),
     (
         ".//DDFField[@name='DSID']/DDFSubfield[@name='PRSP']",
-        "INT.IHO.S-101.2.1",
-        "Product identifier is 'INT.IHO.S-101.2.1', but only 'INT.IHO.S-101.2.0' is nominally handled",
+        "INT.IHO.S-101.3.0",
+        "Product identifier is 'INT.IHO.S-101.3.0', but only 'INT.IHO.S-101.2.0' is nominally handled",
         True,
     ),
     (

@@ -117,12 +117,9 @@ bool OGRS101Reader::ReadDSID(const DDFRecord *poRecord)
         return false;
     }
 
-    // Accept 1.0 and 1.1.0, but only >= 2.0 is operational
-    if (strcmp(pszPRSP, "INT.IHO.S-101.1.0") != 0 &&
-        strcmp(pszPRSP, "INT.IHO.S-101.1.1.0") != 0 &&
-        strcmp(pszPRSP, "INT.IHO.S-101.2.0") != 0 &&
-        // 2.0.0 used by https://github.com/ElectronicChartCentre/swift-s101/blob/main/Tests/SwiftS101Tests/TestResources/101AA00DS0016.000
-        strcmp(pszPRSP, "INT.IHO.S-101.2.0.0") != 0 &&
+    // Accept 1.x, but only >= 2.0 is operational
+    if (!STARTS_WITH(pszPRSP, "INT.IHO.S-101.1.") &&
+        !STARTS_WITH(pszPRSP, "INT.IHO.S-101.2.") &&
         !EMIT_ERROR_OR_WARNING(CPLSPrintf(
             "Product identifier is '%s', but only 'INT.IHO.S-101.2.0' is "
             "nominally handled. Going on but the dataset might not be "
