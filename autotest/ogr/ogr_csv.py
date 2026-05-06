@@ -2628,6 +2628,7 @@ def test_ogr_csv_string_quoting_always(tmp_vsimem):
             "CREATE_CSVT=YES",
             "STRING_QUOTING=ALWAYS",
             "LINEFORMAT=LF",
+            "GEOMETRY=NONE",
         ],
     )
 
@@ -3582,7 +3583,9 @@ def test_ogr_csv_32_bit_integer_invalid_value(tmp_vsimem):
 def test_ogr_csv_do_not_write_header(tmp_vsimem):
 
     filename = tmp_vsimem / "test.csv"
-    gdal.VectorTranslate(filename, "data/poly.shp", layerCreationOptions=["HEADER=NO"])
+    gdal.VectorTranslate(
+        filename, "data/poly.shp", layerCreationOptions=["HEADER=NO", "GEOMETRY=NONE"]
+    )
     with ogr.Open(filename) as ds:
         lyr = ds.GetLayer(0)
         assert lyr.GetLayerDefn().GetFieldDefn(0).GetName() == "field_1"
@@ -3598,7 +3601,9 @@ def test_ogr_csv_open_dir(tmp_vsimem):
     dirname = tmp_vsimem / "my_dir"
     gdal.Mkdir(dirname, 0o755)
     gdal.VectorTranslate(
-        dirname / "test.csv", "data/poly.shp", layerCreationOptions=["CREATE_CSVT=YES"]
+        dirname / "test.csv",
+        "data/poly.shp",
+        layerCreationOptions=["CREATE_CSVT=YES", "GEOMETRY=NONE"],
     )
 
     with ogr.Open(dirname) as ds:
@@ -3640,6 +3645,24 @@ def test_ogr_csv_used_creation_option_instead_of_layer_creation_option(tmp_vsime
         gdal.GetDriverByName("CSV").CreateVector(
             tmp_vsimem / "out", options=["SEPARATOR=COMMA"]
         )
+
+
+###############################################################################
+
+
+def test_ogr_csv_ignored_geometry_warning(tmp_vsimem):
+
+    errors = []
+
+    def test_handler(*args):
+        errors.append(args)
+
+    with gdaltest.error_handler(test_handler):
+        gdal.VectorTranslate(tmp_vsimem / "poly.csv", "data/poly.shp")
+
+    assert len(errors) == 1
+    assert errors[0][0] == gdal.CE_Warning
+    assert "GEOMETRY layer creation option not set" in errors[0][2]
 
 
 ###############################################################################
