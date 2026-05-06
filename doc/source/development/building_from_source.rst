@@ -2526,22 +2526,17 @@ For more details on how to build and use the C# bindings read the dedicated sect
 .. option:: BUILD_CSHARP_BINDINGS:BOOL=ON/OFF
 
     Whether C# bindings should be built. It is ON by default, but only
-    effective if C# runtime and development packages are found. Either .NET
-    SDK can be used or Mono. The relevant options that can be set are described
-    in ``cmake/modules/thirdparty/FindDotNetFrameworkSdk.cmake`` and
-    ``cmake/modules/thirdparty/FindMono.cmake``.
-
-.. option:: CSHARP_MONO=ON/OFF
-
-    Forces the use of Mono as opposed to .NET to compile the C# bindings.
+    effective if a valid .NET SDK is found.
 
 .. option:: CSHARP_LIBRARY_VERSION
 
-    Sets the .NET (or Mono) target SDK to be used when compiling the C# binding libraries. `List of acceptable contents for .NET <https://docs.microsoft.com/en-us/dotnet/standard/frameworks#supported-target-frameworks>`_
+    Sets the .NET target Framework (in TFM format) to be used when compiling the C# binding libraries. `List of acceptable contents for .NET <https://docs.microsoft.com/en-us/dotnet/standard/frameworks#supported-target-frameworks>`_.
+    Defaults to `netstandard2.0`.
 
 .. option:: CSHARP_APPLICATION_VERSION
 
-    Sets the .NET (or Mono) target SDK to be used when compiling the C# sample applications. `List of acceptable contents for .NET <https://docs.microsoft.com/en-us/dotnet/standard/frameworks#supported-target-frameworks>`_
+    Sets the .NET target Framework (in TFM format) to be used when compiling the C# sample applications. `List of acceptable contents for .NET <https://docs.microsoft.com/en-us/dotnet/standard/frameworks#supported-target-frameworks>`_. 
+    Defaults to the highest version installed on the build system, i.e. `latest`.
 
 .. option:: GDAL_CSHARP_ONLY=OFF/ON
 
