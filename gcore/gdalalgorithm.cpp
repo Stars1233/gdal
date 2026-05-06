@@ -22,6 +22,7 @@
 #include "gdalalg_abstract_pipeline.h"
 #include "gdal_priv.h"
 #include "gdal_thread_pool.h"
+#include "memdataset.h"
 #include "ogrsf_frmts.h"
 #include "ogr_spatialref.h"
 #include "vrtdataset.h"
@@ -2894,6 +2895,28 @@ bool GDALAlgorithm::ProcessDatasetArg(GDALAlgorithmArg *arg,
                        : GDALDataset::Open(osDatasetName.c_str(), flags,
                                            aosAllowedDrivers.List(),
                                            aosOpenOptions.List());
+
+            if (!poDS && aosAllowedDrivers.empty() && aosOpenOptions.empty())
+            {
+                auto [poWktGeom, eErr] = OGRGeometryFactory::createFromWkt(
+                    osDatasetName.c_str(), nullptr);
+                if (eErr == OGRERR_NONE)
+                {
+                    auto poMemDS = std::make_unique<MEMDataset>();
+                    auto *poLayer = poMemDS->CreateLayer(
+                        "", poWktGeom->getSpatialReference(),
+                        poWktGeom->getGeometryType());
+
+                    auto poFeatureDefn = poLayer->GetLayerDefn();
+                    OGRFeature oFeature(poFeatureDefn);
+
+                    oFeature.SetGeometry(std::move(poWktGeom));
+                    if (poLayer->CreateFeature(&oFeature) == OGRERR_NONE)
+                    {
+                        poDS = poMemDS.release();
+                    }
+                }
+            }
 
             // Retry with PostGIS vector driver
             if (!poDS && poBackuper &&
