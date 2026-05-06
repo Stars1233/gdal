@@ -13,6 +13,7 @@
 
 import json
 
+import gdaltest
 import ogrtest
 import pytest
 
@@ -1117,6 +1118,7 @@ def test_gdalalg_vector_pipeline_read_execute_sql(tmp_vsimem):
 
 
 @pytest.mark.parametrize("srid", ("", "SRID=4326;"))
+@gdaltest.enable_exceptions()
 def test_gdalalg_vector_pipeline_read_wkt(tmp_vsimem, srid):
 
     gdal.alg.vector.pipeline(

@@ -107,6 +107,14 @@ class CPL_DLL CPLErrorAccumulator
         return errors;
     }
 
+    /** Clear any accumulated errors.
+     */
+    void ClearErrors()
+    {
+        std::lock_guard oLock(mutex);
+        errors.clear();
+    }
+
     /** Replay stored errors. */
     void ReplayErrors();
 
