@@ -18,6 +18,7 @@
 
 #include <array>
 #include <memory>
+#include <tuple>
 #include <vector>
 
 /**
@@ -36,12 +37,12 @@ typedef enum
 /*      mostly conveniences.                                            */
 /************************************************************************/
 
-int CPL_ODLL DDFScanInt(const char *pszString, int nMaxChars);
-int CPL_ODLL DDFScanVariable(const char *pszString, int nMaxChars,
-                             int nDelimChar);
-std::string CPL_ODLL DDFFetchVariable(const char *pszString, int nMaxChars,
-                                      int nDelimChar1, int nDelimChar2,
-                                      int *pnConsumedChars);
+int CPL_DLL DDFScanInt(const char *pszString, int nMaxChars);
+int CPL_DLL DDFScanVariable(const char *pszString, int nMaxChars,
+                            int nDelimChar);
+std::string CPL_DLL DDFFetchVariable(const char *pszString, int nMaxChars,
+                                     int nDelimChar1, int nDelimChar2,
+                                     int *pnConsumedChars);
 
 #define DDF_FIELD_TERMINATOR 30
 #define DDF_UNIT_TERMINATOR 31
@@ -65,13 +66,14 @@ class DDFField;
   from the file.
 */
 
-class CPL_ODLL DDFModule
+class CPL_DLL DDFModule
 {
   public:
     DDFModule();
     ~DDFModule();
 
-    int Open(const char *pszFilename, int bFailQuietly = FALSE);
+    int Open(const char *pszFilename, int bFailQuietly = FALSE,
+             VSILFILE *fpDDFIn = nullptr);
     int Create(const char *pszFilename);
     void Close();
 
@@ -83,7 +85,7 @@ class CPL_ODLL DDFModule
                    int nSizeFieldLength = 3, int nSizeFieldPos = 4,
                    int nSizeFieldTag = 4);
 
-    void Dump(FILE *fp) const;
+    void Dump(FILE *fp, int nNestingLevel = 0) const;
 
     DDFRecord *ReadRecord();
     void Rewind(long) = delete;
@@ -102,6 +104,12 @@ class CPL_ODLL DDFModule
     int GetFieldCount() const
     {
         return static_cast<int>(apoFieldDefns.size());
+    }
+
+    /** Return all field definitions */
+    const std::vector<std::unique_ptr<DDFFieldDefn>> &GetFieldDefns() const
+    {
+        return apoFieldDefns;
     }
 
     DDFFieldDefn *GetField(int);
@@ -227,7 +235,7 @@ typedef enum
  * as containers of the DDFSubfieldDefns.
  */
 
-class CPL_ODLL DDFFieldDefn
+class CPL_DLL DDFFieldDefn
 {
   public:
     DDFFieldDefn();
@@ -245,7 +253,7 @@ class CPL_ODLL DDFFieldDefn
     int Initialize(DDFModule *poModule, const char *pszTag, int nSize,
                    const char *pachRecord);
 
-    void Dump(FILE *fp) const;
+    void Dump(FILE *fp, int nNestingLevel = 0) const;
 
     /** Fetch a pointer to the field name (tag).
      * @return this is an internal copy and should not be freed.
@@ -272,6 +280,12 @@ class CPL_ODLL DDFFieldDefn
     const std::vector<std::unique_ptr<DDFSubfieldDefn>> &GetSubfields() const
     {
         return apoSubfields;
+    }
+
+    // For concatenated fields, report each part as a pseudo field
+    const std::vector<std::unique_ptr<DDFFieldDefn>> &GetParts() const
+    {
+        return apoFieldParts;
     }
 
     const DDFSubfieldDefn *FindSubfieldDefn(const char *) const;
@@ -328,7 +342,13 @@ class CPL_ODLL DDFFieldDefn
         return _data_type_code;
     }
 
-    void SetFormatControls(const char *pszVal);
+    const std::string &GetEscapeSequence() const
+    {
+        return _escapeSequence;
+    }
+
+    // val must be poModule->GetFieldControlLength() - 6 bytes long
+    void SetEscapeSequence(const std::string &val);
 
   private:
     static std::string ExtractSubstring(const char *);
@@ -339,11 +359,12 @@ class CPL_ODLL DDFFieldDefn
     std::string _fieldName{};
     std::string _arrayDescr{};
     std::string _formatControls{};
+    std::string _escapeSequence{"   "};
 
     bool bRepeatingSubfields = false;
     int nFixedWidth = 0;  // zero if variable.
 
-    void BuildSubfields();
+    bool BuildSubfields();
     int ApplyFormats();
 
     DDF_data_struct_code _data_struct_code = dsc_elementary;
@@ -351,6 +372,9 @@ class CPL_ODLL DDFFieldDefn
     DDF_data_type_code _data_type_code = dtc_char_string;
 
     std::vector<std::unique_ptr<DDFSubfieldDefn>> apoSubfields{};
+
+    // Used in concatenated fields
+    std::vector<std::unique_ptr<DDFFieldDefn>> apoFieldParts{};
 
     CPL_DISALLOW_COPY_ASSIGN(DDFFieldDefn)
 };
@@ -369,7 +393,7 @@ class CPL_ODLL DDFFieldDefn
  * data (as instances within a record).
  */
 
-class CPL_ODLL DDFSubfieldDefn
+class CPL_DLL DDFSubfieldDefn
 {
   public:
     DDFSubfieldDefn();
@@ -431,7 +455,7 @@ class CPL_ODLL DDFSubfieldDefn
     int GetDefaultValue(char *pachData, int nBytesAvailable,
                         int *pnBytesUsed) const;
 
-    void Dump(FILE *fp) const;
+    void Dump(FILE *fp, int nNestingLevel = 0) const;
 
     /**
       Binary format: this is the digit immediately following the B or b for
@@ -490,19 +514,23 @@ class CPL_ODLL DDFSubfieldDefn
  * then use ExtractIntData(), ExtractFloatData() or ExtractStringData().
  */
 
-class CPL_ODLL DDFField
+class CPL_DLL DDFField
 {
   public:
     DDFField() = default;
+    DDFField(DDFField &&) = default;
+    DDFField &operator=(DDFField &&) = default;
 
-    void Initialize(const DDFFieldDefn *, const char *pszData, int nSize);
+    void Initialize(const DDFFieldDefn *, const char *pszData, int nSize,
+                    bool bInitializeParts);
+    void InitializeParts();
 
-    void Dump(FILE *fp) const;
+    void Dump(FILE *fp, int nNestingLevel = 0) const;
 
     const char *GetSubfieldData(const DDFSubfieldDefn *, int * = nullptr,
                                 int = 0) const;
 
-    const char *GetInstanceData(int nInstance, int *pnSize);
+    const char *GetInstanceData(int nInstance, int *pnSize = nullptr);
 
     /**
      * Return the pointer to the entire data block for this record. This
@@ -527,12 +555,23 @@ class CPL_ODLL DDFField
         return poDefn;
     }
 
+    // For concatenated fields, report each part as a pseudo field
+    const std::vector<std::unique_ptr<DDFField>> &GetParts() const
+    {
+        return apoFieldParts;
+    }
+
   private:
     const DDFFieldDefn *poDefn = nullptr;
 
     int nDataSize = 0;
 
     const char *pachData = nullptr;
+
+    // Used in concatenated fields
+    std::vector<std::unique_ptr<DDFField>> apoFieldParts{};
+
+    CPL_DISALLOW_COPY_ASSIGN(DDFField)
 };
 
 /************************************************************************/
@@ -548,7 +587,7 @@ class CPL_ODLL DDFField
  * as a list of DDFField instances partitioning the raw data into fields.
  */
 
-class CPL_ODLL DDFRecord
+class CPL_DLL DDFRecord
 {
   public:
     explicit DDFRecord(DDFModule *);
@@ -557,7 +596,7 @@ class CPL_ODLL DDFRecord
     std::unique_ptr<DDFRecord> Clone() const;
     bool TransferTo(DDFModule *poTargetModule);
 
-    void Dump(FILE *) const;
+    void Dump(FILE *, int nNestingLevel = 0) const;
 
     /** Get the number of DDFFields on this record. */
     int GetFieldCount() const
@@ -575,16 +614,27 @@ class CPL_ODLL DDFRecord
 
     const DDFField *GetField(int) const;
 
+    std::vector<const DDFField *> GetFields(const char *pszFieldName) const;
+
+    const std::vector<DDFField> &GetFields() const
+    {
+        return aoFields;
+    }
+
     DDFField *GetField(int i)
     {
         return const_cast<DDFField *>(
             const_cast<const DDFRecord *>(this)->GetField(i));
     }
 
+    int GetIntSubfield(const DDFField *, const char *, int,
+                       int * = nullptr) const;
     int GetIntSubfield(const char *, int, const char *, int,
                        int * = nullptr) const;
     double GetFloatSubfield(const char *, int, const char *, int,
                             int * = nullptr) const;
+    const char *GetStringSubfield(const DDFField *, const char *, int,
+                                  int * = nullptr) const;
     const char *GetStringSubfield(const char *, int, const char *, int,
                                   int * = nullptr) const;
 
@@ -622,17 +672,11 @@ class CPL_ODLL DDFRecord
         return poModule;
     }
 
-    int ResizeField(DDFField *poField, int nNewDataSize);
     int DeleteField(DDFField *poField);
     DDFField *AddField(DDFFieldDefn *);
 
-    int CreateDefaultFieldInstance(DDFField *poField, int iIndexWithinField);
-
     int SetFieldRaw(DDFField *poField, int iIndexWithinField,
                     const char *pachRawData, int nRawDataSize);
-    int UpdateFieldRaw(DDFField *poField, int iIndexWithinField,
-                       int nStartOffset, int nOldSize, const char *pachRawData,
-                       int nRawDataSize);
 
     int Write();
 
@@ -679,6 +723,38 @@ class CPL_ODLL DDFRecord
 
   private:
     int ReadHeader();
+
+    static std::tuple<const DDFField *, const DDFSubfieldDefn *>
+    FindSubfieldDefn(const DDFField *poField, const char *pszSubfield,
+                     bool bEmitError = true);
+
+    std::tuple<const DDFField *, const DDFField *, const DDFSubfieldDefn *>
+    FindSubfieldDefn(const char *pszField, int iFieldIndex,
+                     const char *pszSubfield, bool bEmitError = true) const;
+
+    std::tuple<DDFField *, DDFField *, const DDFSubfieldDefn *>
+    FindSubfieldDefn(const char *pszField, int iFieldIndex,
+                     const char *pszSubfield)
+    {
+        auto [field, partField, subfield] =
+            const_cast<const DDFRecord *>(this)->FindSubfieldDefn(
+                pszField, iFieldIndex, pszSubfield);
+        return {const_cast<DDFField *>(field),
+                const_cast<DDFField *>(partField), subfield};
+    }
+
+    int CreateDefaultFieldInstance(DDFField *poField, int iIndexWithinField);
+
+    int ResizeField(DDFField *poField, int nNewDataSize);
+
+    int UpdateFieldRaw(DDFField *poField, DDFField *poPartField,
+                       int iIndexWithinField, int nStartOffset, int nOldSize,
+                       const char *pachRawData, int nRawDataSize);
+
+    char *GetSubfieldDataForSetSubfield(DDFField *poField,
+                                        DDFField *poPartField,
+                                        const DDFSubfieldDefn *poSFDefn,
+                                        int iSubfieldIndex, int &nMaxBytes);
 
     DDFModule *poModule = nullptr;
 
