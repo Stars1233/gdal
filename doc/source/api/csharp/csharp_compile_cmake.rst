@@ -1,7 +1,7 @@
 .. _csharp_compile_cmake:
 
 ================================================================================
-Compiling the C# bindings - CMake Scripts
+Compiling the C# bindings
 ================================================================================
 
 This page describes the primary steps when creating the GDAL/OGR C# binaries from the source using the new CMake scripts.
@@ -13,19 +13,16 @@ You can either build the bindings as part of a full GDAL build - or standalone o
 Requirements
 ++++++++++++
 
-The build environment has the following dependencies:
+See :ref:`build_requirements`
 
-* CMake 3.10 or later
-* the appropriate C++ build environment (i.e. gcc or Visual Studio etc).
-* SWIG 4
-* .NET 5.0 or Mono
+In addition, you will require a valid installation of `dotnet` with at least one SDK installed that can build the requested target frameworks.
 
-.NET Build Toolchain
-++++++++++++++++++++
+C# Version
+++++++++++
 
-The build scripts can use either .NET 5.0 and  :file:`dotnet.exe` or Mono and :file:`msc.exe` to compile the bindings.
+The C# bindings themselves are written in SWIG and designed to be compatible with `netstandard2.0`.
 
-.NET is used for preference if it found on all platforms but the use of Mono can be forced using a command line variable.
+However, the sample applications are written in C# version 10. Incompatible syntax will break the build.
 
 Building as part of a GDAL Build
 ++++++++++++++++++++++++++++++++
@@ -35,7 +32,7 @@ The build environment uses the following variables:
 .. option:: BUILD_CSHARP_BINDINGS:BOOL=ON/OFF
 
     Whether C# bindings should be built. It is ON by default, but only
-    effective a valid .NET SDK is found.
+    effective if a valid .NET SDK is found.
 
 .. option:: CSHARP_LIBRARY_VERSION
 
@@ -112,7 +109,7 @@ There are also the following NuGET packages:
 Using the C# Bindings
 -----------------------
 
-The easiest way to use the bindings in development is to use the NuGET packages created.
+The easiest way to use the bindings in development when built in this way is to use the NuGET packages created.
 
 To do this you need to add a local repository pointing to the GDAL install directory. `This is explained here <https://docs.microsoft.com/en-us/nuget/hosting-packages/local-feeds>`__ .
 
@@ -126,45 +123,6 @@ Once this is done, you add the GDAL packages into your project as normal.
           This means that to load the package into Visual Studio (for instance), you have to tick the pre-release box.
           This is all intentional and not a bug.
 
-
-Building on Mono
-----------------
-
-If the build environment does not have .NET 5.0 or msbuild installed and GDAL is built, then the c# bindings will be built using Mono by default. Mono building can also be forced
-by setting CSHARP_MONO.
-
-The details of building GDAL are documented elsewhere, but the there are likely to be variants of the following commands run from the root directory of the gdal repository:
-
-.. code-block::
-
-    cmake -DCMAKE_INSTALL_PREFIX ../install -DCSHARP_MONO=ON -B ../build -S .
-    cmake --build ../build --config Release
-    cmake --build ../build --config Release --target install
-
-The C# bindings and sample apps are installed in the install directory (in the above case that would be `../install`, in the `share/csharp` sub folder. There would be the following files:
-
-* :file:`gdal_csharp.dll`
-* :file:`ogr_csharp.dll`
-* :file:`osr_csharp.dll`
-* :file:`gdalconst_csharp.dll`
-* :file:`gdal_wrap.dll` or :file:`libgdal_wrap.so` or :file:`libgdal_wrap.dylib`
-* :file:`ogr_wrap.dll` or :file:`libogr_wrap.so` or :file:`libogr_wrap.dylib`
-* :file:`osr_wrap.dll` or :file:`libosr_wrap.so` or :file:`libosr_wrap.dylib`
-* :file:`osr_wrap.dll` or :file:`libosr_wrap.so` or :file:`libosr_wrap.dylib`
-* :file:`gdalconst_wrap.dll` or :file:`libgdalconst_wrap.so` or :file:`libgdalconst_wrap.dylib`
-* various sample applications as \*.exe on all platforms.
-
-Using the Mono Bindings
------------------------
-
-Note that the bindings created by this process will only work with Mono.
-
-To run one of the prebuilt executables - you can run them with Mono as follows :
-
-:program:`mono GDALInfo.exe`
-
-Both the managed libraries (i.e. the DLLs) and the unmanaged libraries must be available to Mono.
-This is in more detail in `the Mono documentation <https://www.mono-project.com/docs/advanced/pinvoke/>`__
 
 Building Standalone
 +++++++++++++++++++
