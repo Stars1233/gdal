@@ -3099,9 +3099,10 @@ CPL_NOINLINE void GDALCopyWordsT(const int32_t *const CPL_RESTRICT pSrcData,
                 reinterpret_cast<const __m128i *>(pSrcData + n + 8));
             __m128i v3 = _mm_loadu_si128(
                 reinterpret_cast<const __m128i *>(pSrcData + n + 12));
-            // Values in [0, 255]: pack int32->int16->uint8
+            // Pack int32->int16 with signed saturation to [-32768,32767] range
             __m128i lo16 = _mm_packs_epi32(v0, v1);
             __m128i hi16 = _mm_packs_epi32(v2, v3);
+            // Pack int16->uint8 with unsigned saturation to [0,255] range
             __m128i bytes = _mm_packus_epi16(lo16, hi16);
             _mm_storeu_si128(reinterpret_cast<__m128i *>(pDstData + n), bytes);
         }
