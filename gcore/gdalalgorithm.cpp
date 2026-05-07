@@ -2889,7 +2889,8 @@ bool GDALAlgorithm::ProcessDatasetArg(GDALAlgorithmArg *arg,
                                            aosAllowedDrivers.List(),
                                            aosOpenOptions.List());
 
-            if (!poDS && aosAllowedDrivers.empty() && aosOpenOptions.empty())
+            if (!poDS && aosAllowedDrivers.empty() && aosOpenOptions.empty() &&
+                !arg->IsOutput() && arg->GetDatasetType() & GDAL_OF_VECTOR)
             {
                 auto [poWktGeom, eErr] = OGRGeometryFactory::createFromWkt(
                     osDatasetName.c_str(), nullptr);
