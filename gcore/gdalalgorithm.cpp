@@ -13,6 +13,7 @@
 #include "cpl_port.h"
 #include "cpl_conv.h"
 #include "cpl_error.h"
+#include "cpl_error_internal.h"
 #include "cpl_json.h"
 #include "cpl_levenshtein.h"
 #include "cpl_minixml.h"
@@ -22,6 +23,7 @@
 #include "gdalalg_abstract_pipeline.h"
 #include "gdal_priv.h"
 #include "gdal_thread_pool.h"
+#include "memdataset.h"
 #include "ogrsf_frmts.h"
 #include "ogr_spatialref.h"
 #include "vrtdataset.h"
@@ -2877,35 +2879,53 @@ bool GDALAlgorithm::ProcessDatasetArg(GDALAlgorithmArg *arg,
         }
 
         GDALDataset *poDS;
+        CPLErrorAccumulator oAccumulator;
         {
-            // The PostGISRaster may emit an error message, that is not
-            // relevant, if it is the vector driver that was intended
-            std::unique_ptr<CPLErrorStateBackuper> poBackuper;
-            if (cpl::starts_with(osDatasetName, "PG:") &&
-                (flags & (GDAL_OF_RASTER | GDAL_OF_VECTOR)) != 0)
-            {
-                poBackuper = std::make_unique<CPLErrorStateBackuper>(
-                    CPLQuietErrorHandler);
-            }
+            auto oContext = oAccumulator.InstallForCurrentScope();
 
-            CPL_IGNORE_RET_VAL(poBackuper);
             poDS = oIterDatasetNameToDataset != m_oMapDatasetNameToDataset.end()
                        ? oIterDatasetNameToDataset->second
                        : GDALDataset::Open(osDatasetName.c_str(), flags,
                                            aosAllowedDrivers.List(),
                                            aosOpenOptions.List());
 
+            if (!poDS && aosAllowedDrivers.empty() && aosOpenOptions.empty() &&
+                !arg->IsOutput() && arg->GetDatasetType() & GDAL_OF_VECTOR)
+            {
+                auto [poWktGeom, eErr] = OGRGeometryFactory::createFromWkt(
+                    osDatasetName.c_str(), nullptr);
+                if (eErr == OGRERR_NONE)
+                {
+                    auto poMemDS = std::make_unique<MEMDataset>();
+                    auto *poLayer = poMemDS->CreateLayer(
+                        "", poWktGeom->getSpatialReference(),
+                        poWktGeom->getGeometryType());
+
+                    auto poFeatureDefn = poLayer->GetLayerDefn();
+                    OGRFeature oFeature(poFeatureDefn);
+
+                    oFeature.SetGeometry(std::move(poWktGeom));
+                    if (poLayer->CreateFeature(&oFeature) == OGRERR_NONE)
+                    {
+                        poDS = poMemDS.release();
+                        oAccumulator.ClearErrors();
+                    }
+                }
+            }
+
             // Retry with PostGIS vector driver
-            if (!poDS && poBackuper &&
+            if (!poDS && (flags & (GDAL_OF_RASTER | GDAL_OF_VECTOR)) != 0 &&
+                cpl::starts_with(osDatasetName, "PG:") &&
                 GetGDALDriverManager()->GetDriverByName("PostGISRaster") &&
                 aosAllowedDrivers.empty() && aosOpenOptions.empty())
             {
-                poBackuper.reset();
+                oAccumulator.ClearErrors();
                 poDS = GDALDataset::Open(
                     osDatasetName.c_str(), flags & ~GDAL_OF_RASTER,
                     aosAllowedDrivers.List(), aosOpenOptions.List());
             }
         }
+        oAccumulator.ReplayErrors();
 
         if (poDS)
         {

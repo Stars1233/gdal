@@ -13,6 +13,7 @@
 
 import json
 
+import gdaltest
 import ogrtest
 import pytest
 
@@ -1114,3 +1115,38 @@ def test_gdalalg_vector_pipeline_read_execute_sql(tmp_vsimem):
     ds = ogr.Open(f"{tmp_vsimem}/out.shp")
     lyr = ds.GetLayer(0)
     assert lyr.GetFeatureCount() == 10
+
+
+@pytest.mark.parametrize("srid", ("", "SRID=4326;"))
+@gdaltest.enable_exceptions()
+def test_gdalalg_vector_pipeline_read_wkt(tmp_vsimem, srid):
+
+    gdal.alg.vector.pipeline(
+        f'read "{srid}LINESTRING (3 3, 4 4)" ! write {tmp_vsimem}/out.shp'
+    )
+
+    ds = gdal.OpenEx(tmp_vsimem / "out.shp")
+    assert ds.GetLayerCount() == 1
+
+    lyr = ds.GetLayer(0)
+    assert lyr.GetGeomType() == ogr.wkbLineString
+    assert lyr.GetFeatureCount() == 1
+
+    if srid:
+        assert lyr.GetSpatialRef().GetAttrValue("AUTHORITY", 1) == srid.replace(
+            "SRID=", ""
+        ).strip(";")
+    else:
+        assert lyr.GetSpatialRef() is None
+
+    assert lyr.GetNextFeature().GetGeometryRef().ExportToWkt() == "LINESTRING (3 3,4 4)"
+
+
+@pytest.mark.parametrize(
+    "wkt",
+    ("SRID=4326LINESTRING (3 3, 4 4)", "SRID=;LINESTRING (3 3, 4 4)", "POINT (3 3"),
+)
+def test_gdalalg_vector_pipeline_read_wkt_invalid(tmp_vsimem, wkt):
+
+    with pytest.raises(Exception, match="No such file or directory"):
+        gdal.alg.vector.pipeline(f'read "{wkt}" ! write {tmp_vsimem}/out.shp')

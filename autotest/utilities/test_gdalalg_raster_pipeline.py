@@ -745,3 +745,9 @@ def test_gdalalg_raster_pipeline_info_executable():
         f"{gdal_path} raster pipeline read ../gcore/data/byte.tif ! info"
     )
     assert out.startswith("Driver: GTiff/GeoTIFF")
+
+
+def test_gdalalg_raster_pipeline_ignores_wkt_input(tmp_vsimem):
+
+    with pytest.raises(Exception, match="No such file"):
+        gdal.alg.raster.pipeline('read "POINT (2 2)" ! write {tmp_vsimem}/out.tif')

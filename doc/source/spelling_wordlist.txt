@@ -2534,6 +2534,7 @@ posList
 poSrcDS
 poSrcFDefn
 poSrcFeature
+poSR
 poSRS
 Postel
 postfix
@@ -2559,6 +2560,7 @@ ppoReturn
 pppppppppppp
 pProgressArg
 ppszAreaName
+ppszData
 ppszDetailedFormat
 ppszDstText
 ppszFailureReason

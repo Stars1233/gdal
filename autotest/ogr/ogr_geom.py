@@ -3889,6 +3889,42 @@ def test_ogr_geom_import_corrupted_wkb():
 
 
 ###############################################################################
+# Test importing EWKT
+
+
+def test_ogr_geom_import_ewkt():
+
+    g = ogr.CreateGeometryFromWkt("SRID=4326;POINT (0 0)")
+    assert g.GetSpatialReference().GetAttrValue("AUTHORITY", 1) == "4326"
+
+
+def test_ogr_geom_import_ewkt_override():
+
+    srs = osr.SpatialReference(epsg=4269)
+
+    g = ogr.CreateGeometryFromWkt("SRID=4326;POINT (0 0)", srs)
+    assert g.GetSpatialReference().GetAttrValue("AUTHORITY", 1) == "4269"
+
+
+@pytest.mark.parametrize(
+    "wkt",
+    (
+        "SRID=;POINT (0 0)",
+        "SRID=-3;POINT (0 0)",
+        "SRID=4326 POINT (0 0)",
+        "SRID=43.26;POINT (0 0)",
+        "SRID 4326;POINT (0 0)",
+    ),
+)
+def test_ogr_geom_import_ewkt_invalid(wkt):
+
+    srs = osr.SpatialReference(epsg=4269)
+
+    assert ogr.CreateGeometryFromWkt(wkt) is None
+    assert ogr.CreateGeometryFromWkt(wkt, srs) is None
+
+
+###############################################################################
 # Test conversions from/into triangle, TIN, PS
 
 
