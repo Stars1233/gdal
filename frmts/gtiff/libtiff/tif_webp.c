@@ -849,6 +849,9 @@ static const TIFFField TWebPFields[] = {
 
 static uint64_t TWebPGetMaxCompressionRatio(TIFF *tif)
 {
+    /* See README_for_libtiff_developpers.md for raw data used to estimate
+     * the maximum compression rate. */
+
     /* lossy compression: */
     /* return (tif->tif_dir.td_samplesperpixel == 4) ? 2199 : 1685; */
     /* lossless compression: */

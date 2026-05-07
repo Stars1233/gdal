@@ -1521,6 +1521,10 @@ static void Fax3PrintDir(TIFF *tif, FILE *fd, long flags)
 static uint64_t Fax3GetMaxCompressionRatio(TIFF *tif)
 {
     (void)tif;
+
+    /* See README_for_libtiff_developpers.md for raw data used to estimate
+     * the maximum compression rate. */
+
     /* 1024x1024: 36 */
     /* 4096x4096: 100 */
     /* 16383x16383: 163 */
@@ -1746,6 +1750,10 @@ static int Fax4PostEncode(TIFF *tif)
 
 static uint64_t Fax4GetMaxCompressionRatio(TIFF *tif)
 {
+    /* FAX4 can compress up to almost one byte per line, so the compression
+     * ratio can be up to the tile/strip width.
+     * See README_for_libtiff_developpers.md for raw data
+     */
     return isTiled(tif) ? tif->tif_dir.td_tilewidth
                         : tif->tif_dir.td_imagewidth;
 }
@@ -1847,6 +1855,9 @@ static int Fax3DecodeRLE(TIFF *tif, uint8_t *buf, tmsize_t occ, uint16_t s)
 static uint64_t Fax3RLEGetMaxCompressionRatio(TIFF *tif)
 {
     (void)tif;
+    /* See README_for_libtiff_developpers.md for raw data used to estimate
+     * the maximum compression rate. */
+
     /* 1024x1024: 43 */
     /* 4096x4096: 128 */
     /* 16383x16383: 171 */

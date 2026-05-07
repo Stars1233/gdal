@@ -3303,6 +3303,14 @@ static int TIFFLinkDirectory(TIFF *tif)
             uint16_t dircount;
             uint32_t nextnextdir;
 
+            /* Update IDF loop list and check for IFD loop.
+             * ndir is IFD ID plus one. */
+            if (!_TIFFCheckDirNumberAndOffset(tif, ndir - 1, nextdir))
+            {
+                TIFFErrorExtR(tif, module, "Error IFD loop detected");
+                return 0; /* bad offset (IFD looping or more than
+                             TIFF_MAX_DIR_COUNT IFDs) */
+            }
             if (!SeekOK(tif, nextdir) || !ReadOK(tif, &dircount, 2))
             {
                 TIFFErrorExtR(tif, module, "Error fetching directory count");
@@ -3380,6 +3388,13 @@ static int TIFFLinkDirectory(TIFF *tif)
             uint64_t dircount64;
             uint64_t nextnextdir;
 
+            /* Update IDF loop list and check for IFD loop. */
+            if (!_TIFFCheckDirNumberAndOffset(tif, ndir - 1, nextdir))
+            {
+                TIFFErrorExtR(tif, module, "Error IFD loop detected");
+                return 0; /* bad offset (IFD looping or more than
+                             TIFF_MAX_DIR_COUNT IFDs) */
+            }
             if (!SeekOK(tif, nextdir) || !ReadOK(tif, &dircount64, 8))
             {
                 TIFFErrorExtR(tif, module, "Error fetching directory count");

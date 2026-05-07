@@ -320,6 +320,10 @@ static int PackBitsDecode(TIFF *tif, uint8_t *op, tmsize_t occ, uint16_t s)
 static uint64_t PackBitsGetMaxCompressionRatio(TIFF *tif)
 {
     (void)tif;
+
+    /* See README_for_libtiff_developpers.md for raw data used to estimate
+     * the maximum compression rate. */
+
     return 64;
 }
 

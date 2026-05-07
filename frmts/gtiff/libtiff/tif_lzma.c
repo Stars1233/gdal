@@ -489,6 +489,10 @@ static const TIFFField lzmaFields[] = {
 static uint64_t LZMAGetMaxCompressionRatio(TIFF *tif)
 {
     (void)tif;
+
+    /* See README_for_libtiff_developpers.md for raw data used to estimate
+     * the maximum compression rate. */
+
     /* 1024x1024: 3800 */
     /* 4096x4096: 6534 */
     /* 16383x16383: 6846 */
